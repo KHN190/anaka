@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "anaka",
+  "version": "${version}",
+  "name": "Anaka",
+  "description": "A local, token-protected HTTP API that lets external agents (AI assistants, scripts) read game state and play through normal vanilla inputs: pathfinding, mining, placing, crafting, eating and combat. Singleplayer only.",
+  "authors": [
+    "knh190"
+  ],
+  "license": "MIT",
+  "contact": {
+    "homepage": "https://github.com/KHN190/anaka",
+    "sources": "https://github.com/KHN190/anaka",
+    "issues": "https://github.com/KHN190/anaka/issues"
+  },
+  "environment": "client",
+  "icon": "assets/anaka/icon.png",
+  "entrypoints": {
+    "client": [
+      "dev.anaka.Anaka"
+    ]
+  },
+  "mixins": [
+    "anaka.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "fabric-api": "*",
+    "minecraft": "~1.21.11",
+    "java": ">=21"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "key.anaka.release": "Toggle control (agent / you)",
+  "anaka.hud.paused": "[Agent] paused — you have control. Press %s to hand it back",
+  "anaka.hud.resumed": "[Agent] control handed back to the agent",
+  "key.category.anaka.main": "Anaka",
+  "anaka.hud.active": "[Agent] %s  —  press %s to take control",
+  "anaka.hud.released": "[Agent] control returned to you",
+  "anaka.hud.disabled_multiplayer": "[Agent] disabled on multiplayer servers (see config/anaka.json)"
+}

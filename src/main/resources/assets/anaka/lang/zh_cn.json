@@ -1,0 +1,9 @@
+{
+  "key.anaka.release": "切换控制权（代理 / 你）",
+  "anaka.hud.paused": "[代理] 已暂停 — 你在控制。按 %s 交还给代理",
+  "anaka.hud.resumed": "[代理] 控制权已交还给代理",
+  "key.category.anaka.main": "Anaka",
+  "anaka.hud.active": "[代理] %s  —  按 %s 取回控制",
+  "anaka.hud.released": "[代理] 控制权已交还给你",
+  "anaka.hud.disabled_multiplayer": "[代理] 多人服务器上已禁用（见 config/anaka.json）"
+}
