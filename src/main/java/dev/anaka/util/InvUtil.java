@@ -29,6 +29,13 @@ public final class InvUtil {
             o.addProperty("damage", stack.getDamage());
             o.addProperty("maxDamage", stack.getMaxDamage());
         }
+        // What an enchanting table or a brewing stand made is in the stack itself: the product, not a proxy.
+        if (stack.hasEnchantments()) o.addProperty("enchanted", true);
+        var potion = stack.get(DataComponentTypes.POTION_CONTENTS);
+        if (potion != null) {
+            potion.potion().flatMap(entry -> entry.getKey())
+                    .ifPresent(key -> o.addProperty("potion", key.getValue().toString()));
+        }
         return o;
     }
 

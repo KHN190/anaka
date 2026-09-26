@@ -111,9 +111,9 @@ final class HttpApi {
             int nodes = req.intParam("nodes", 60000);
             return onClient(c -> {
                 if (c.player == null || c.world == null) throw new IllegalStateException("not in a world");
-                var planner = new dev.anaka.util.BuildPathfinder(c.world, c.player, c.player.getBlockPos(),
+                var planner = new dev.anaka.util.Pathfinder(c.world, c.player, c.player.getBlockPos(),
                     pos -> Math.sqrt(pos.getSquaredDistance(to)) <= range + 0.5, to,
-                    new dev.anaka.util.BuildPathfinder.Options(brk, place, 64,
+                    new dev.anaka.util.Pathfinder.Options(brk, place, 64,
                         new it.unimi.dsi.fastutil.longs.LongOpenHashSet()), nodes);
                 while (!planner.isDone()) planner.step(5000);
                 var out = new com.google.gson.JsonObject();
@@ -202,6 +202,10 @@ final class HttpApi {
         }));
         route("/release", true, req -> onClient(c -> {
             Agent.get().release(c, "released via API");
+            return ok();
+        }));
+        route("/control", true, req -> onClient(c -> {
+            Agent.get().setPaused(c, req.body.get("paused").getAsBoolean());
             return ok();
         }));
         route("/resume", true, req -> onClient(c -> {
@@ -298,7 +302,7 @@ final class HttpApi {
                     return;
                 }
                 String method = exchange.getRequestMethod().toUpperCase();
-                if (method.equals("POST") && Agent.get().isPaused() && !path.equals("/release")) {
+                if (method.equals("POST") && Agent.get().isPaused() && !path.equals("/release") && !path.equals("/control")) {
                     // The player took over: nothing may change their game (close screens, click, move) until handed back.
                     send(exchange, 409, error("player has control (press the toggle key to hand it back)"));
                     return;

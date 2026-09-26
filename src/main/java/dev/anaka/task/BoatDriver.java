@@ -39,7 +39,6 @@ final class BoatDriver {
     private boolean failAfterRecover;
     private final java.util.Set<Integer> existingBoats = new java.util.HashSet<>();
 
-    private static final double PLACE_REACH = 4.0;
 
     /** First route cell ahead that is still water with air above and whose surface is within reach. */
     private BlockPos placementTarget(World w, ClientPlayerEntity p) {
@@ -49,7 +48,7 @@ final class BoatDriver {
             if (!WorldUtil.isWater(w, cell) || !w.getFluidState(cell).isStill()) continue;
             if (!w.getBlockState(cell.up()).isAir()) continue;
             Vec3d top = new Vec3d(cell.getX() + 0.5, cell.getY() + 0.9, cell.getZ() + 0.5);
-            if (eye.distanceTo(top) <= PLACE_REACH
+            if (eye.distanceTo(top) <= WorldUtil.blockReach(p)
                 && !p.getBoundingBox().intersects(new net.minecraft.util.math.Box(cell))) {
                 return cell;
             }
@@ -60,7 +59,7 @@ final class BoatDriver {
     /** The crosshair ray (as the boat item sees it) hits water at or next to the target. */
     private static boolean aimsAtWater(MinecraftClient c, ClientPlayerEntity p, BlockPos target) {
         Vec3d eye = p.getEyePos();
-        Vec3d end = eye.add(p.getRotationVec(1f).multiply(PLACE_REACH + 1));
+        Vec3d end = eye.add(p.getRotationVec(1f).multiply(p.getBlockInteractionRange()));
         net.minecraft.util.hit.BlockHitResult hit = c.world.raycast(new net.minecraft.world.RaycastContext(eye, end,
             net.minecraft.world.RaycastContext.ShapeType.OUTLINE, net.minecraft.world.RaycastContext.FluidHandling.ANY, p));
         if (hit.getType() != net.minecraft.util.hit.HitResult.Type.BLOCK) return false;

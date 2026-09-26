@@ -54,11 +54,18 @@ public final class Agent {
 
     /** Toggle key: agent in control → player takes over (paused); paused → hand control back to the agent. */
     public void toggle(MinecraftClient client) {
-        if (controlling) {
-            release(client, "released by player");
+        if (controlling) setPaused(client, true);
+        else if (paused) setPaused(client, false);
+    }
+
+    /** The toggle's two states, also set from the API (/control): the bench simulates a player exactly as the key does. */
+    public void setPaused(MinecraftClient client, boolean on) {
+        if (on == paused) return;
+        if (on) {
+            if (controlling) release(client, "released by player");
             paused = true;
             client.inGameHud.setOverlayMessage(Text.translatable("anaka.hud.paused", Anaka.releaseKeyName()), false);
-        } else if (paused) {
+        } else {
             paused = false;
             takeover(client);
             client.inGameHud.setOverlayMessage(Text.translatable("anaka.hud.resumed"), false);

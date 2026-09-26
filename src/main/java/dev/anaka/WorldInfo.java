@@ -56,6 +56,7 @@ final class WorldInfo {
         o.addProperty("blockLight", w.getLightLevel(LightType.BLOCK, feet));
         o.addProperty("skyLight", w.getLightLevel(LightType.SKY, feet));
         o.addProperty("timeOfDay", w.getTimeOfDay() % 24000);
+        o.addProperty("gameTime", w.getTime());
         o.addProperty("health", p.getHealth());
         o.addProperty("maxHealth", p.getMaxHealth());
         o.addProperty("food", p.getHungerManager().getFoodLevel());
@@ -296,6 +297,8 @@ final class WorldInfo {
             // Endermen are neutral until provoked: the brain must know which ones are actually after us, so it can
             // break line of sight or step into water instead of picking a fight it never needed.
             if (e instanceof net.minecraft.entity.mob.EndermanEntity en) o.addProperty("angry", en.isAngry());
+            // Breeding is proven by a baby, not by the food that went into it.
+            if (e instanceof net.minecraft.entity.passive.PassiveEntity pe) o.addProperty("baby", pe.isBaby());
             if (e instanceof ItemEntity ie) o.add("item", InvUtil.stackJson(ie.getStack()));
             arr.add(o);
         }

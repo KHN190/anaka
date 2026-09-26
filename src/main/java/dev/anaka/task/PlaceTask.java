@@ -4,7 +4,10 @@ import dev.anaka.Agent;
 import dev.anaka.util.InvUtil;
 import dev.anaka.util.Pathfinder;
 import dev.anaka.util.WorldUtil;
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.util.math.Direction;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.util.Hand;
@@ -15,8 +18,8 @@ import net.minecraft.util.math.Box;
 /**
  * Places a block from the inventory by clicking an adjacent face, like a player would.
  * Optional orientation, for blocks whose state depends on how they were placed:
- * {@code against} = the neighbour to click (a hopper then outputs into it), {@code yaw}/{@code pitch} = the body
- * orientation held while clicking (pistons, observers, furnaces and repeaters take their facing from it).
+ * {@code against} = the neighbour to click (a hopper then outputs into it), {@code facing} = the facing the placed
+ * block must have: the body rotation that gives it is asked of the block itself (its own placement rule).
  */
 public final class PlaceTask extends Task {
     private static final int MAX_ATTEMPTS = 3;
@@ -25,8 +28,8 @@ public final class PlaceTask extends Task {
     private final BlockPos pos;
     private final String itemId;
     private final BlockPos against;
-    private final Float yaw;
-    private final Float pitch;
+    private final Direction facing;
+    private float[] look;
 
     private int attempts;
     private int verifyTicks = -1;
@@ -38,16 +41,15 @@ public final class PlaceTask extends Task {
     private int orientedTicks;
 
     public PlaceTask(BlockPos pos, String itemId) {
-        this(pos, itemId, null, null, null);
+        this(pos, itemId, null, null);
     }
 
-    public PlaceTask(BlockPos pos, String itemId, BlockPos against, Float yaw, Float pitch) {
+    public PlaceTask(BlockPos pos, String itemId, BlockPos against, Direction facing) {
         super("place");
         this.pos = pos;
         this.itemId = itemId;
         this.against = against;
-        this.yaw = yaw;
-        this.pitch = pitch;
+        this.facing = facing;
         this.timeoutTicks = 20 * 120;
     }
 
@@ -84,7 +86,7 @@ public final class PlaceTask extends Task {
             return;
         }
 
-        double range = p.getBlockInteractionRange() - 0.3;
+        double range = WorldUtil.blockReach(p);
         // Ladders and vines are thin plates on a wall: vanilla lets a player place them in the cell they stand in.
         boolean thinPlate = net.minecraft.block.Block.getBlockFromItem(
                 net.minecraft.registry.Registries.ITEM.get(net.minecraft.util.Identifier.of(itemId)))
@@ -139,13 +141,20 @@ public final class PlaceTask extends Task {
         // Sneak so clicking chests or crafting tables places against them instead of opening them.
         a.input.sneak = true;
         boolean aimed = oriented || Agent.lookAt(p, pl.hit(), 35f);
-        if (aimed && yaw != null) {
+        if (aimed && facing != null) {
             // Face-sensitive blocks read the body orientation, not the clicked face: turn to it and hold it a few
             // ticks so the server has the rotation before the click arrives.
+            if (look == null) look = lookFor(p, new BlockHitResult(pl.hit(), pl.face(), pl.support(), false));
+            if (look == null) {
+                fail("no body rotation places " + itemId + " facing " + facing.asString());
+                return;
+            }
             oriented = true;
-            p.setYaw(yaw);
-            if (pitch != null) p.setPitch(pitch);
-            if (++orientedTicks < HOLD_ORIENTATION_TICKS) return;
+            if (look.length == 2) {
+                p.setYaw(look[0]);
+                p.setPitch(look[1]);
+                if (++orientedTicks < HOLD_ORIENTATION_TICKS) return;
+            }
         }
         if (aimed && ++sneakTicks >= 2 && InvUtil.id(p.getMainHandStack()).equals(itemId)) {
             c.interactionManager.interactBlock(p, Hand.MAIN_HAND, new BlockHitResult(pl.hit(), pl.face(), pl.support(), false));
@@ -155,9 +164,42 @@ public final class PlaceTask extends Task {
         }
     }
 
+    /**
+     * The rotation at which the block's own placement rule gives {@code facing}: every cardinal yaw at level, up and
+     * down, tried through {@code getPlacementState}. Empty when the block has no facing (nothing to hold); null when
+     * no rotation gives it.
+     */
+    private float[] lookFor(ClientPlayerEntity p, BlockHitResult hit) {
+        Block block = Block.getBlockFromItem(p.getMainHandStack().getItem());
+        if (facingOf(block.getDefaultState()) == null) return new float[0];
+        float yaw0 = p.getYaw(), pitch0 = p.getPitch();
+        try {
+            for (float pitch : new float[] {0f, 90f, -90f}) {
+                for (float yaw : new float[] {0f, 90f, 180f, -90f}) {
+                    p.setYaw(yaw);
+                    p.setPitch(pitch);
+                    BlockState s = block.getPlacementState(
+                        new ItemPlacementContext(p, Hand.MAIN_HAND, p.getMainHandStack(), hit));
+                    if (s != null && facingOf(s) == facing) return new float[] {yaw, pitch};
+                }
+            }
+            return null;
+        } finally {
+            p.setYaw(yaw0);
+            p.setPitch(pitch0);
+        }
+    }
+
+    private static Direction facingOf(BlockState s) {
+        for (var prop : s.getProperties()) {
+            if (prop.getName().equals("facing") && s.get(prop) instanceof Direction d) return d;
+        }
+        return null;
+    }
+
     private Pathfinder.Goal placeGoal(MinecraftClient c, double range) {
         ClientPlayerEntity p = c.player;
         return new Pathfinder.Goal(feet -> !feet.equals(pos) && !feet.up().equals(pos)
-            && WorldUtil.findPlacement(c.world, p, WorldUtil.eyeAt(feet), pos, range - 0.3, against) != null, pos);
+            && WorldUtil.findPlacement(c.world, p, WorldUtil.eyeAt(feet), pos, range - WorldUtil.REACH_MARGIN, against) != null, pos);
     }
 }

@@ -37,7 +37,7 @@ public final class UseBlockTask extends Task {
             }
             return;
         }
-        double range = p.getBlockInteractionRange() - 0.2;
+        double range = WorldUtil.blockReach(p);
         BlockHitResult hit = WorldUtil.visibleHit(c.world, p, p.getEyePos(), pos, range);
         if (hit == null) {
             if (child == null) {
@@ -46,7 +46,7 @@ public final class UseBlockTask extends Task {
                     return;
                 }
                 Pathfinder.Goal goal = new Pathfinder.Goal(
-                    feet -> WorldUtil.visibleHit(c.world, p, WorldUtil.eyeAt(feet), pos, range - 0.3) != null, pos);
+                    feet -> WorldUtil.visibleHit(c.world, p, WorldUtil.eyeAt(feet), pos, range - WorldUtil.REACH_MARGIN) != null, pos);
                 child = new GotoTask(goal, "walking to " + pos.toShortString(), false, false);
             }
             if (runChild(c, a)) {

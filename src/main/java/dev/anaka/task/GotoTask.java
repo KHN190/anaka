@@ -28,6 +28,7 @@ public final class GotoTask extends Task {
     private BlockPos openedDoor;
     private int doorCooldown;
     private int centerTicks;
+    private boolean center = true;
     private int progressIndex = -1;
     private double bestWaypointDistance;
     private int noProgressTicks;
@@ -74,11 +75,21 @@ public final class GotoTask extends Task {
         return new GotoTask(goal, "walking to " + target.toShortString(), allowPartial, sprint, useBoat);
     }
 
+    /** Arrive on reaching the goal cell, without settling into its centre: a chase, not a placement. */
+    public GotoTask noCentering() {
+        center = false;
+        return this;
+    }
+
     @Override
     public String describe() {
         if (boat != null) return label + " (" + boat.describe() + ")";
         if (path == null) return label + " (planning)";
         return label + " (" + Math.min(index, path.size()) + "/" + path.size() + ")";
+    }
+
+    private static List<BlockPos> nodes(List<Pathfinder.Step> steps) {
+        return steps.stream().map(Pathfinder.Step::node).toList();
     }
 
     static BlockPos feet(ClientPlayerEntity p) {
@@ -91,7 +102,7 @@ public final class GotoTask extends Task {
     }
 
     private void plan(MinecraftClient c) {
-        planner = new Pathfinder(c.world, feet(c.player), goal, maxNodes);
+        planner = new Pathfinder(c.world, c.player, feet(c.player), goal, Pathfinder.WALK_ONLY, maxNodes);
         path = null;
         anchor = null;
         sinceCheck = 0;
@@ -107,7 +118,7 @@ public final class GotoTask extends Task {
             // Goals are judged from the block centre (eye position, reach, sight lines); the body can stand at the
             // block's edge where those judgements are false. Settle into the centre before reporting arrival.
             double cx = feet.getX() + 0.5 - p.getX(), cz = feet.getZ() + 0.5 - p.getZ();
-            if (Math.sqrt(cx * cx + cz * cz) > 0.2 && ++centerTicks <= 20) {
+            if (center && Math.sqrt(cx * cx + cz * cz) > 0.2 && ++centerTicks <= 20) {
                 Agent.rotateTowards(p, Agent.yawTo(cx, cz), p.getPitch(), 90f);
                 a.input.forward = true;
                 a.input.sneak = true; // slow and never walks off an edge
@@ -126,7 +137,7 @@ public final class GotoTask extends Task {
             if (!planner.isDone()) return;
             partial = !planner.found();
             if (partial && (!allowPartial || planner.path().size() <= 1)) {
-                List<BlockPos> closest = planner.path();
+                List<BlockPos> closest = nodes(planner.path());
                 if (!closest.isEmpty()) {
                     BlockPos end = closest.get(closest.size() - 1);
                     result.add("closest", posJson(end));
@@ -134,7 +145,7 @@ public final class GotoTask extends Task {
                 fail("no path found (" + planner.expanded() + " positions explored)");
                 return;
             }
-            path = planner.path();
+            path = nodes(planner.path());
             index = 1;
         }
 

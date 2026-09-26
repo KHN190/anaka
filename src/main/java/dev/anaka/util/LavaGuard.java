@@ -54,7 +54,7 @@ public final class LavaGuard {
         }
         double dx = target.x - p.getX();
         double dz = target.z - p.getZ();
-        float yaw = (float) (Math.toDegrees(Math.atan2(-dx, dz)));
+        float yaw = dev.anaka.Agent.yawTo(dx, dz);
         return new Escape(yaw, dx * dx + dz * dz > 0.04);
     }
 

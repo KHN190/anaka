@@ -2,6 +2,7 @@ package dev.anaka.task;
 
 import dev.anaka.Agent;
 import dev.anaka.util.InvUtil;
+import dev.anaka.util.WorldUtil;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.entity.Entity;
@@ -49,7 +50,7 @@ public final class InteractEntityTask extends Task {
             return;
         }
         Vec3d aim = new Vec3d(target.getX(), target.getY() + target.getHeight() * 0.5, target.getZ());
-        double reach = p.getEntityInteractionRange() - 0.4;
+        double reach = WorldUtil.entityReach(p);
         if (p.getEyePos().squaredDistanceTo(aim) > reach * reach) {
             if (child == null || child.isFinished() || --replanCooldown <= 0) {
                 if (child != null && !child.isFinished()) child.cancel("target moved");

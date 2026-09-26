@@ -1,7 +1,7 @@
 package dev.anaka.task;
 
 import dev.anaka.Agent;
-import dev.anaka.util.BuildPathfinder;
+import dev.anaka.util.Pathfinder;
 import dev.anaka.util.InvUtil;
 import dev.anaka.util.WorldUtil;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -15,7 +15,7 @@ import java.util.List;
 
 /**
  * Gets somewhere by any legal means — walk, swim, climb, break through, bridge, pillar — planned and executed with
- * one world model ({@link BuildPathfinder}). A failed step blacklists its cell and the route is planned again.
+ * one world model ({@link Pathfinder}). A failed step blacklists its cell and the route is planned again.
  */
 public final class TravelTask extends Task {
     private static final String[] BUILDING = {"minecraft:cobblestone", "minecraft:cobbled_deepslate", "minecraft:dirt",
@@ -31,11 +31,11 @@ public final class TravelTask extends Task {
     private final int placeBudget;
     private final LongOpenHashSet avoid;
 
-    private BuildPathfinder planner;
-    private List<BuildPathfinder.Step> path;
+    private Pathfinder planner;
+    private List<Pathfinder.Step> path;
     private int index;
-    private Deque<BuildPathfinder.Action> pending;
-    private BuildPathfinder.Action current;
+    private Deque<Pathfinder.Action> pending;
+    private Pathfinder.Action current;
     private int replans;
     private String lastError = "";
     private boolean partialRoute;
@@ -91,9 +91,9 @@ public final class TravelTask extends Task {
                 // Never plan on more blocks than the bag holds right now: every replan used to get the full budget
                 // again while the stock shrank, so a trek bridged until "no building blocks to bridge with".
                 int budget = Math.min(placeBudget, stock(p));
-                planner = new BuildPathfinder(c.world, p, start,
+                planner = new Pathfinder(c.world, p, start,
                     pos -> Math.sqrt(pos.getSquaredDistance(target)) <= range + 0.5, target,
-                    new BuildPathfinder.Options(allowBreak, allowPlace, budget, avoid), 120000);
+                    new Pathfinder.Options(allowBreak, allowPlace, budget, avoid), 120000);
             }
             planner.step(PLAN_BUDGET_PER_TICK);
             if (!planner.isDone()) return;
@@ -130,10 +130,10 @@ public final class TravelTask extends Task {
             return;
         }
 
-        BuildPathfinder.Step step = path.get(index);
+        Pathfinder.Step step = path.get(index);
         if (pending == null) pending = new ArrayDeque<>(step.actions());
         while (!pending.isEmpty()) {
-            BuildPathfinder.Action act = pending.poll();
+            Pathfinder.Action act = pending.poll();
             current = act;
             switch (act.kind()) {
                 case MINE -> {
@@ -147,7 +147,7 @@ public final class TravelTask extends Task {
                         fail("no building blocks to bridge with");
                         return;
                     }
-                    child = new PlaceTask(act.pos(), block, act.against(), null, null);
+                    child = new PlaceTask(act.pos(), block, act.against(), null);
                 }
                 case PILLAR -> {
                     String block = pickBlock(p);

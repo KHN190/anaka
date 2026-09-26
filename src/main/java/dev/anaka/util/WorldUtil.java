@@ -21,6 +21,16 @@ import java.util.Set;
 
 public final class WorldUtil {
     public static final double EYE_HEIGHT = 1.62;
+    /** Held back from the game's reach so an aim a hair off still lands; approach goals take it off once more. */
+    public static final double REACH_MARGIN = 0.3;
+
+    public static double blockReach(net.minecraft.entity.player.PlayerEntity p) {
+        return p.getBlockInteractionRange() - REACH_MARGIN;
+    }
+
+    public static double entityReach(net.minecraft.entity.player.PlayerEntity p) {
+        return p.getEntityInteractionRange() - REACH_MARGIN;
+    }
 
     private static final Set<Block> HAZARDS = Set.of(
         Blocks.FIRE, Blocks.SOUL_FIRE, Blocks.CACTUS, Blocks.SWEET_BERRY_BUSH, Blocks.POWDER_SNOW,

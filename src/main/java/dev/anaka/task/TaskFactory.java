@@ -9,6 +9,7 @@ import net.minecraft.item.Item;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 
 import java.util.ArrayList;
@@ -25,7 +26,7 @@ public final class TaskFactory {
             case "goto" -> GotoTask.near(pos(o), dbl(o, "range", 1.0), bool(o, "partial", true), bool(o, "sprint", true),
                 bool(o, "useBoat", true));
             case "mine" -> new MineTask(pos(o), bool(o, "collect", true), bool(o, "requireDrops", true), onlySet(o));
-            case "place" -> new PlaceTask(pos(o), itemId(o), optPos(o, "against"), optFloat(o, "yaw"), optFloat(o, "pitch"));
+            case "place" -> new PlaceTask(pos(o), itemId(o), optPos(o, "against"), optFacing(o));
             case "pillar" -> new PillarTask(itemId(o));
             case "travel" -> new TravelTask(pos(o), dbl(o, "range", 1.5), bool(o, "break", true), bool(o, "place", true),
                 (int) dbl(o, "placeBudget", 64), avoidSet(o));
@@ -57,9 +58,8 @@ public final class TaskFactory {
             Block target = Block.getBlockFromItem(Registries.ITEM.get(Identifier.of(item)));
             if (c.world.getBlockState(p).isOf(target)) continue;
             BlockPos against = optPos(b, "against");
-            Float yaw = optFloat(b, "yaw");
-            Float pitch = optFloat(b, "pitch");
-            steps.add(new SequenceTask.Step(p, () -> new PlaceTask(p, item, against, yaw, pitch)));
+            Direction facing = optFacing(b);
+            steps.add(new SequenceTask.Step(p, () -> new PlaceTask(p, item, against, facing)));
         }
         return new SequenceTask("build", steps, SequenceTask.Order.BUILD, null);
     }
@@ -94,13 +94,17 @@ public final class TaskFactory {
         return out;
     }
 
+    private static Direction optFacing(JsonObject o) {
+        if (!o.has("facing")) return null;
+        String name = o.get("facing").getAsString().toLowerCase(java.util.Locale.ROOT);
+        for (Direction d : Direction.values()) if (d.asString().equals(name)) return d;
+        throw new IllegalArgumentException("unknown facing: " + name);
+    }
+
     private static BlockPos optPos(JsonObject o, String key) {
         return o.has(key) && o.get(key).isJsonObject() ? pos(o.getAsJsonObject(key)) : null;
     }
 
-    private static Float optFloat(JsonObject o, String key) {
-        return o.has(key) && !o.get(key).isJsonNull() ? o.get(key).getAsFloat() : null;
-    }
 
     private static BlockPos pos(JsonObject o) {
         if (!o.has("x") || !o.has("y") || !o.has("z")) throw new IllegalArgumentException("x, y, z are required");
