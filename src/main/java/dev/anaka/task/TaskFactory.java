@@ -81,7 +81,7 @@ public final class TaskFactory {
         }
         java.util.Set<String> only = onlySet(o);
         return new SequenceTask("mine_many", steps, SequenceTask.Order.MINE,
-            collect ? () -> new CollectTask(null, 10, 10, only) : null);
+            collect ? () -> new CollectTask(null, 5, 10, only) : null);   // what fell near the batch, not a 10-block walk per item
     }
 
     /** Optional "only": [item ids] — the collect sweep walks only to these drops (a nearly full bag skips junk). */

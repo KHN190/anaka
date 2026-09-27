@@ -125,7 +125,7 @@ public final class MineTask extends Task {
             }
             toolId = InvUtil.id(p.getMainHandStack());
         }
-        if (Agent.lookAt(p, hit.getPos(), 35f)) {
+        if (Agent.lookAt(p, hit.getPos(), 70f)) {         // turn fast: a 35-degree step per tick spent 0.3 s aiming per block
             c.interactionManager.updateBlockBreakingProgress(pos, hit.getSide());
             p.swingHand(Hand.MAIN_HAND);
             breaking = true;
