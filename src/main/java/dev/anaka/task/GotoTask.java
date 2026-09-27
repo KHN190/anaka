@@ -2,6 +2,7 @@ package dev.anaka.task;
 
 import dev.anaka.Agent;
 import dev.anaka.util.Pathfinder;
+import dev.anaka.util.WorldUtil;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.util.math.BlockPos;
@@ -119,7 +120,7 @@ public final class GotoTask extends Task {
     protected void tick(MinecraftClient c, Agent a) {
         ClientPlayerEntity p = c.player;
         BlockPos feet = feet(p);
-        if (goal.reached().test(feet) && (p.isOnGround() || p.isTouchingWater())) {
+        if (goal.reached().test(feet) && heldUp(c, p, feet)) {
             // Goals are judged from the block centre (eye position, reach, sight lines); the body can stand at the
             // block's edge where those judgements are false. Settle into the centre before reporting arrival.
             double cx = feet.getX() + 0.5 - p.getX(), cz = feet.getZ() + 0.5 - p.getZ();
@@ -154,7 +155,7 @@ public final class GotoTask extends Task {
             index = 1;
         }
 
-        while (index < path.size() && (reached(p, path.get(index)) || reachedSwimming(p, path.get(index)))) {
+        while (index < path.size() && (reached(p, path.get(index)) || reachedSwimming(c, p, feet, path.get(index)))) {
             index++;
             anchor = p.getEntityPos();
         }
@@ -169,7 +170,7 @@ public final class GotoTask extends Task {
             if (partial) {
                 result.addProperty("partial", true);
                 fail("target unreachable; stopped at the closest reachable point");
-            } else if (p.isOnGround() || p.isTouchingWater()) {
+            } else if (heldUp(c, p, feet)) {
                 succeed("arrived");
             }
             return;
@@ -220,6 +221,15 @@ public final class GotoTask extends Task {
         a.input.forward = yawError < (horizontal < 1.5 ? 25f : 50f);
         a.input.sprint = sprint && path.size() - index > 3 && p.getHungerManager().getFoodLevel() > 6 && !p.isTouchingWater();
         boolean climb = dy > 0.5 && horizontal < 1.6;
+        if (ashoreNext(c, p, feet, wp)) {
+            // Climbing out onto the bank: push into it with jump held until the ground takes us (the game lifts a
+            // swimmer pressing into a block at the surface). Waiting for the turn to finish left the body bobbing
+            // at the bank (reach_land_swim: 10009.7, y 198.2-199.9, never out).
+            a.input.forward = true;
+            a.input.jump = true;
+            a.input.sprint = false;
+            return;
+        }
         a.input.jump = (p.isOnGround() && (climb || p.horizontalCollision))
             || (p.isTouchingWater() && (dy > -0.5 || p.isSubmergedInWater()))
             || (p.isClimbing() && dy > 0.3); // holding jump climbs a ladder
@@ -336,9 +346,24 @@ public final class GotoTask extends Task {
         return o;
     }
 
-    /** Floating bodies drift and bob, so accept a wider radius and ignore height while swimming. */
-    private static boolean reachedSwimming(ClientPlayerEntity p, BlockPos wp) {
-        if (!p.isTouchingWater()) return false;
+    /**
+     * Held where it stands: on the ground out of the water, or in the water where the target cell itself is water.
+     * Touching water alone counted a swimmer beside the bank as arrived on it.
+     */
+    private static boolean heldUp(MinecraftClient c, ClientPlayerEntity p, BlockPos feet) {
+        return WorldUtil.isWater(c.world, feet) ? p.isTouchingWater() || p.isOnGround() : p.isOnGround();
+    }
+
+    /** In the water, the next node is dry land above the feet (or a solid-floored cell out of the water). */
+    private static boolean ashoreNext(MinecraftClient c, ClientPlayerEntity p, BlockPos feet, BlockPos wp) {
+        return p.isTouchingWater() && !WorldUtil.isWater(c.world, wp)
+            && (wp.getY() >= feet.getY() + 1 || !c.world.getBlockState(wp.down()).isAir());
+    }
+
+    /** Floating bodies drift and bob, so accept a wider radius and ignore height while swimming — for water nodes;
+     * a dry node above the water is reached only by standing on it (`reached`). */
+    private static boolean reachedSwimming(MinecraftClient c, ClientPlayerEntity p, BlockPos feet, BlockPos wp) {
+        if (!p.isTouchingWater() || ashoreNext(c, p, feet, wp)) return false;
         double dx = wp.getX() + 0.5 - p.getX();
         double dz = wp.getZ() + 0.5 - p.getZ();
         return dx * dx + dz * dz < 0.9 * 0.9 && Math.abs(wp.getY() - p.getY()) < 1.5;
