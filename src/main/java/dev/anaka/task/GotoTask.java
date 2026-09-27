@@ -14,7 +14,7 @@ import java.util.List;
 /** Walks along an A* path using simulated movement keys (real physics, jumping, swimming). */
 public final class GotoTask extends Task {
     private static final int SEARCH_BUDGET_PER_TICK = 4000;
-    private static final int MAX_NODES = 60_000;
+    static final int MAX_NODES = 60_000;
     private static final int MAX_REPATHS = 5;
 
     private final Pathfinder.Goal goal;

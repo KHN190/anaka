@@ -98,7 +98,9 @@ public final class CollectTask extends Task {
                 int dy = at.getY() - feet.getY();
                 return dx * dx + dz * dz <= PICKUP_HORIZONTAL * PICKUP_HORIZONTAL && dy >= -1 && dy <= 1;
             }, at);
-            child = new GotoTask(goal, "picking up item", false, false);
+            // The one approach (walk, else dig/place through): a drop in a 1-high slot has no standing cell in
+            // pickup range on foot (brain__underground's diamond: "collecting items (0)").
+            child = ApproachTask.to(goal, "picking up item", false, GotoTask.MAX_NODES, false, null);
         }
         if (runChild(c, a) && child.status() == Status.FAILED) {
             unreachable.add(targetId);
