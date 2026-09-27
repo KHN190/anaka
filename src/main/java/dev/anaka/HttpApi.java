@@ -316,7 +316,9 @@ final class HttpApi {
                 send(exchange, 200, out);
             } catch (IllegalArgumentException | IllegalStateException e) {
                 sendQuietly(exchange, 400, error(e.getMessage()));
-            } catch (Exception e) {
+            } catch (Throwable e) {
+                // Every failure is answered and logged: an Error escaping here (or a second send after a failed
+                // one) closed the connection with no reply and no log line — Python saw only "RemoteDisconnected".
                 Throwable cause = e instanceof ExecutionException && e.getCause() != null ? e.getCause() : e;
                 if (cause instanceof IllegalArgumentException) {
                     sendQuietly(exchange, 400, error(cause.getMessage()));
@@ -401,10 +403,14 @@ final class HttpApi {
     }
 
     private static void sendQuietly(HttpExchange exchange, int status, JsonObject body) {
+        if (exchange.getResponseCode() != -1) {
+            Anaka.LOG.error("Anaka request {}: {} after a reply had started ({})", exchange.getRequestURI(), status, body);
+            return;                          // headers already sent: a second reply would only reset the socket
+        }
         try {
             send(exchange, status, body);
-        } catch (IOException ignored) {
-            // Client went away.
+        } catch (IOException e) {
+            Anaka.LOG.warn("Anaka request {}: reply {} not delivered ({})", exchange.getRequestURI(), status, e.toString());
         }
     }
 
