@@ -26,8 +26,11 @@ public final class CollectTask extends Task {
     private final Set<String> only;
 
     private final Set<Integer> unreachable = new HashSet<>();
+    /** Items whose cell was dug once already: a drop buried by falling sand is dug out, once, before giving up. */
+    private final Set<Integer> dugOut = new HashSet<>();
     private int idleTicks;
     private int arrivedTicks;
+    private boolean digging;
     private int targetId = -1;
     private int collected;
 
@@ -75,9 +78,26 @@ public final class CollectTask extends Task {
         }
         idleTicks = 0;
         ItemEntity item = nearest.get();
+        if (digging && child != null) {
+            if (!child.isFinished()) {
+                runChild(c, a);
+                return;
+            }
+            digging = false;             // dug (or not): walk to it again
+            child = null;
+        }
         if (child != null && child.status() == Status.SUCCEEDED && item.getId() == targetId) {
             // "Arrived" next to the item but it isn't being picked up (inside a block, on a ledge, ...).
             if (++arrivedTicks > 20) {
+                BlockPos cell = item.getBlockPos();
+                if (!c.world.getBlockState(cell).isAir() && dugOut.add(targetId)) {
+                    // Buried: sand or gravel fell onto the drop (mine_stone__buried_by_sand lost 1 of 3). Dig its
+                    // cell out, then walk to it again.
+                    child = new MineTask(cell, false, false);
+                    digging = true;
+                    arrivedTicks = 0;
+                    return;
+                }
                 unreachable.add(targetId);
                 targetId = -1;
                 child = null;
