@@ -66,6 +66,7 @@ final class WorldInfo {
         o.addProperty("xpLevel", p.experienceLevel);
         o.addProperty("onGround", p.isOnGround());
         o.addProperty("inWater", p.isTouchingWater());
+        o.addProperty("climbing", p.isClimbing());
         // Standing in a portal (feet or head): Python used to read /blocks for it after every portal step.
         boolean portal = false;
         for (BlockPos q : new BlockPos[]{feet, feet.up()}) {
