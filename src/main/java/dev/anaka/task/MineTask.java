@@ -25,6 +25,7 @@ public final class MineTask extends Task {
 
     private final java.util.Set<String> only;
     private boolean walkOnly;
+    private it.unimi.dsi.fastutil.longs.LongOpenHashSet avoid;
 
     public MineTask(BlockPos pos, boolean collect, boolean requireDrops) {
         this(pos, collect, requireDrops, null);
@@ -42,6 +43,12 @@ public final class MineTask extends Task {
     /** Approach on foot only: TravelTask's own steps, which must not start a travel inside the travel. */
     public MineTask walkOnly() {
         walkOnly = true;
+        return this;
+    }
+
+    /** Cells the approach may never dig or build through (the task JSON's "avoid"). */
+    public MineTask avoiding(it.unimi.dsi.fastutil.longs.LongOpenHashSet cells) {
+        avoid = cells;
         return this;
     }
 
@@ -91,7 +98,7 @@ public final class MineTask extends Task {
                     return;
                 }
                 // A spot to mine from is always close: 6 000 nodes, not 60 000 (unreachable blocks burned minutes).
-                child = ApproachTask.to(reachGoal(c, range), "walking to mine " + blockId, true, 6_000, walkOnly);
+                child = ApproachTask.to(reachGoal(c, range), "walking to mine " + blockId, true, 6_000, walkOnly, avoid);
             }
             if (runChild(c, a)) {
                 if (child.status() != Status.SUCCEEDED) {

@@ -25,12 +25,13 @@ public final class TaskFactory {
         return switch (type) {
             case "goto" -> GotoTask.near(pos(o), dbl(o, "range", 1.0), bool(o, "partial", true), bool(o, "sprint", true),
                 bool(o, "useBoat", true));
-            case "mine" -> new MineTask(pos(o), bool(o, "collect", true), bool(o, "requireDrops", true), onlySet(o));
-            case "place" -> new PlaceTask(pos(o), itemId(o), optPos(o, "against"), optFacing(o));
+            case "mine" -> new MineTask(pos(o), bool(o, "collect", true), bool(o, "requireDrops", true), onlySet(o))
+                .avoiding(avoidSet(o));
+            case "place" -> new PlaceTask(pos(o), itemId(o), optPos(o, "against"), optFacing(o)).avoiding(avoidSet(o));
             case "pillar" -> new PillarTask(itemId(o));
             case "travel" -> new TravelTask(pos(o), dbl(o, "range", 1.5), bool(o, "break", true), bool(o, "place", true),
                 (int) dbl(o, "placeBudget", 64), avoidSet(o));
-            case "use" -> new UseBlockTask(pos(o));
+            case "use" -> new UseBlockTask(pos(o)).avoiding(avoidSet(o));
             case "attack" -> new AttackTask(integer(o, "entity"));
             case "bed_bomb" -> new BedBombTask(pos(o), itemId(o));
             case "interact" -> new InteractEntityTask(integer(o, "entity"), o.has("item") ? itemId(o) : null);
@@ -52,6 +53,7 @@ public final class TaskFactory {
 
     private static Task build(MinecraftClient c, JsonObject o) {
         List<SequenceTask.Step> steps = new ArrayList<>();
+        it.unimi.dsi.fastutil.longs.LongOpenHashSet avoid = avoidSet(o);
         for (JsonObject b : objects(o, "blocks")) {
             BlockPos p = pos(b);
             String item = itemId(b);
@@ -59,7 +61,7 @@ public final class TaskFactory {
             if (c.world.getBlockState(p).isOf(target)) continue;
             BlockPos against = optPos(b, "against");
             Direction facing = optFacing(b);
-            steps.add(new SequenceTask.Step(p, () -> new PlaceTask(p, item, against, facing)));
+            steps.add(new SequenceTask.Step(p, () -> new PlaceTask(p, item, against, facing).avoiding(avoid)));
         }
         return new SequenceTask("build", steps, SequenceTask.Order.BUILD, null);
     }
@@ -67,11 +69,12 @@ public final class TaskFactory {
     private static Task mineMany(MinecraftClient c, JsonObject o) {
         boolean collect = bool(o, "collect", true);
         boolean requireDrops = bool(o, "requireDrops", true);
+        it.unimi.dsi.fastutil.longs.LongOpenHashSet avoid = avoidSet(o);
         List<SequenceTask.Step> steps = new ArrayList<>();
         for (JsonObject b : objects(o, "blocks")) {
             BlockPos p = pos(b);
             // Drops near the next block get picked up on the way; one sweep at the end gets the rest.
-            steps.add(new SequenceTask.Step(p, () -> new MineTask(p, false, requireDrops)));
+            steps.add(new SequenceTask.Step(p, () -> new MineTask(p, false, requireDrops).avoiding(avoid)));
         }
         java.util.Set<String> only = onlySet(o);
         return new SequenceTask("mine_many", steps, SequenceTask.Order.MINE,

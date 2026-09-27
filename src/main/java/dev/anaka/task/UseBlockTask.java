@@ -14,11 +14,18 @@ public final class UseBlockTask extends Task {
     private final BlockPos pos;
     private int waitTicks = -1;
     private int approaches;
+    private it.unimi.dsi.fastutil.longs.LongOpenHashSet avoid;
 
     public UseBlockTask(BlockPos pos) {
         super("use");
         this.pos = pos;
         this.timeoutTicks = 20 * 120;
+    }
+
+    /** Cells the approach may never dig or build through (the task JSON's "avoid"). */
+    public UseBlockTask avoiding(it.unimi.dsi.fastutil.longs.LongOpenHashSet cells) {
+        avoid = cells;
+        return this;
     }
 
     @Override
@@ -47,7 +54,7 @@ public final class UseBlockTask extends Task {
                 }
                 Pathfinder.Goal goal = new Pathfinder.Goal(
                     feet -> WorldUtil.visibleHit(c.world, p, WorldUtil.eyeAt(feet), pos, range - WorldUtil.REACH_MARGIN) != null, pos);
-                child = ApproachTask.to(goal, "walking to " + pos.toShortString(), false, 60_000, false);
+                child = ApproachTask.to(goal, "walking to " + pos.toShortString(), false, 60_000, false, avoid);
             }
             if (runChild(c, a)) {
                 if (child.status() != Status.SUCCEEDED) {

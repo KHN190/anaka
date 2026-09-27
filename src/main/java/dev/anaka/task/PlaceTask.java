@@ -41,10 +41,17 @@ public final class PlaceTask extends Task {
     private int orientedTicks;
 
     private boolean walkOnly;
+    private it.unimi.dsi.fastutil.longs.LongOpenHashSet avoid;
 
     /** Approach on foot only: TravelTask's own steps, which must not start a travel inside the travel. */
     public PlaceTask walkOnly() {
         walkOnly = true;
+        return this;
+    }
+
+    /** Cells the approach may never dig or build through (the task JSON's "avoid"). */
+    public PlaceTask avoiding(it.unimi.dsi.fastutil.longs.LongOpenHashSet cells) {
+        avoid = cells;
         return this;
     }
 
@@ -129,7 +136,7 @@ public final class PlaceTask extends Task {
                     return;
                 }
                 // A stand spot to place from is always close: 6 000 nodes, not the 60 000 of a long walk.
-                child = ApproachTask.to(placeGoal(c, range), "walking to place " + itemId, false, 6_000, walkOnly);
+                child = ApproachTask.to(placeGoal(c, range), "walking to place " + itemId, false, 6_000, walkOnly, avoid);
             }
             if (runChild(c, a)) {
                 if (child.status() != Status.SUCCEEDED) {

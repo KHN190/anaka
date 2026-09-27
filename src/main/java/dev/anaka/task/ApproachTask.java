@@ -20,20 +20,25 @@ public final class ApproachTask extends Task {
     private final boolean sprint;
     private final int maxNodes;
     private final boolean walkOnly;
+    private final LongOpenHashSet avoid;
     private boolean travelling;
 
-    private ApproachTask(Pathfinder.Goal goal, String label, boolean sprint, int maxNodes, boolean walkOnly) {
+    private ApproachTask(Pathfinder.Goal goal, String label, boolean sprint, int maxNodes, boolean walkOnly,
+                         LongOpenHashSet avoid) {
         super("approach");
         this.goal = goal;
         this.label = label;
         this.sprint = sprint;
         this.maxNodes = maxNodes;
         this.walkOnly = walkOnly;
+        this.avoid = avoid == null ? new LongOpenHashSet() : avoid;
         this.timeoutTicks = 20 * 300;
     }
 
-    public static ApproachTask to(Pathfinder.Goal goal, String label, boolean sprint, int maxNodes, boolean walkOnly) {
-        return new ApproachTask(goal, label, sprint, maxNodes, walkOnly);
+    /** {@code avoid}: cells the dig-through may never break or build in (our own builds, the task's "avoid"). */
+    public static ApproachTask to(Pathfinder.Goal goal, String label, boolean sprint, int maxNodes, boolean walkOnly,
+                                  LongOpenHashSet avoid) {
+        return new ApproachTask(goal, label, sprint, maxNodes, walkOnly, avoid);
     }
 
     @Override
@@ -57,6 +62,6 @@ public final class ApproachTask extends Task {
         }
         travelling = true;
         result.addProperty("walk", why);
-        child = new TravelTask(goal, true, true, PLACE_BUDGET, new LongOpenHashSet());
+        child = new TravelTask(goal, true, true, PLACE_BUDGET, new LongOpenHashSet(avoid));
     }
 }
