@@ -83,8 +83,24 @@ public final class TaskFactory {
             steps.add(new SequenceTask.Step(p, () -> new MineTask(p, false, requireDrops).avoiding(avoid)));
         }
         java.util.Set<String> only = onlySet(o);
+        // One sweep over the whole batch: centred on its blocks, reaching the farthest of them. Centred on where the
+        // body ended it missed the other end of a batch 8 blocks wide (ban_needs_a_failure: 2 ores mined, 1 kept).
+        BlockPos centre = batchCentre(steps);
+        double reach = 5 + steps.stream().mapToDouble(s -> Math.sqrt(s.pos().getSquaredDistance(centre))).max().orElse(0);
         return new SequenceTask("mine_many", steps, SequenceTask.Order.MINE,
-            collect ? () -> new CollectTask(null, 5, 10, only) : null);   // what fell near the batch, not a 10-block walk per item
+            collect ? () -> new CollectTask(centre, reach, 10, only) : null);   // what fell near the batch, not a walk per item
+    }
+
+    private static BlockPos batchCentre(List<SequenceTask.Step> steps) {
+        if (steps.isEmpty()) return null;
+        long x = 0, y = 0, z = 0;
+        for (SequenceTask.Step s : steps) {
+            x += s.pos().getX();
+            y += s.pos().getY();
+            z += s.pos().getZ();
+        }
+        int n = steps.size();
+        return new BlockPos((int) Math.round((double) x / n), (int) Math.round((double) y / n), (int) Math.round((double) z / n));
     }
 
     /** Optional "only": [item ids] — the collect sweep walks only to these drops (a nearly full bag skips junk). */
