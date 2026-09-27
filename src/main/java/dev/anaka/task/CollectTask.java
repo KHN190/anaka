@@ -116,7 +116,10 @@ public final class CollectTask extends Task {
                 double dx = feet.getX() + 0.5 - item.getX();
                 double dz = feet.getZ() + 0.5 - item.getZ();
                 int dy = at.getY() - feet.getY();
-                return dx * dx + dz * dz <= PICKUP_HORIZONTAL * PICKUP_HORIZONTAL && dy >= -1 && dy <= 1;
+                // Standing on the rim of the hole a mined block left, the drop in it is out of pickup reach (the
+                // box reaches half a block down): stand at its level or one below, never above it. From the rim the
+                // sweep waited out arrivedTicks at every hole (mine_stone__interrupt_mid_work: ~4 s a sweep).
+                return dx * dx + dz * dz <= PICKUP_HORIZONTAL * PICKUP_HORIZONTAL && dy >= 0 && dy <= 1;
             }, at);
             // The one approach (walk, else dig/place through): a drop in a 1-high slot has no standing cell in
             // pickup range on foot (brain__underground's diamond: "collecting items (0)").
