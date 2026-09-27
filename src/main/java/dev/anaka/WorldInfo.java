@@ -139,6 +139,12 @@ final class WorldInfo {
     }
 
     static JsonObject find(MinecraftClient c, Set<String> ids, int radius, int limit, boolean exposedOnly) {
+        return find(c, ids, radius, limit, exposedOnly, 0);
+    }
+
+    /** {@code perBlock} > 0: keep only the nearest {@code perBlock} of each id — one scan answers "how far is the
+     * nearest of each of these" (the planner's cost model asked it once per kind: fifteen scans a round). */
+    static JsonObject find(MinecraftClient c, Set<String> ids, int radius, int limit, boolean exposedOnly, int perBlock) {
         ClientWorld w = c.world;
         ClientPlayerEntity p = c.player;
         int r = Math.max(1, Math.min(MAX_FIND_RADIUS, radius));
@@ -164,6 +170,10 @@ final class WorldInfo {
             }
         }
         hits.sort((a, b) -> Double.compare(a.distSq, b.distSq));
+        if (perBlock > 0) {
+            java.util.Map<String, Integer> seen = new java.util.HashMap<>();
+            hits.removeIf(h -> seen.merge(h.id, 1, Integer::sum) > perBlock);
+        }
         JsonObject o = new JsonObject();
         o.addProperty("found", hits.size());
         JsonArray arr = new JsonArray();

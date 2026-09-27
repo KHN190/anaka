@@ -91,7 +91,9 @@ final class HttpApi {
             Set<String> ids = new HashSet<>();
             for (String id : blocks.split(",")) ids.add(id.contains(":") ? id.trim() : "minecraft:" + id.trim());
             boolean exposed = Boolean.parseBoolean(req.query.getOrDefault("exposed", "false"));
-            return onClient(c -> WorldInfo.find(c, ids, req.intParam("radius", 32), req.intParam("limit", 50), exposed));
+            int perBlock = req.intParam("perBlock", 0);     // > 0: at most this many of EACH id (nearest first)
+            return onClient(c -> WorldInfo.find(c, ids, req.intParam("radius", 32), req.intParam("limit", 50), exposed,
+                perBlock));
         });
         route("/dark", true, req -> onClient(c -> WorldInfo.dark(c, req.intParam("radius", 8),
             req.intParam("maxLight", 0), req.intParam("limit", 20))));
