@@ -42,7 +42,9 @@ public final class TravelTask extends Task {
 
     public TravelTask(BlockPos target, double range, boolean allowBreak, boolean allowPlace, int placeBudget,
                       LongOpenHashSet avoid) {
-        this(new Pathfinder.Goal(pos -> Math.sqrt(pos.getSquaredDistance(target)) <= range + 0.5, target),
+        // Height within `range` too: range + 0.5 in 3-D let a range-0.6 trip "arrive" on the step one block below.
+        this(new Pathfinder.Goal(pos -> Math.sqrt(pos.getSquaredDistance(target)) <= range + 0.5
+            && Math.abs(pos.getY() - target.getY()) <= range, target),
             allowBreak, allowPlace, placeBudget, avoid);
     }
 
