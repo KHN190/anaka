@@ -18,6 +18,7 @@ public final class AttackTask extends Task {
     private final String footwork;
     private int hits;
     private int ticks;
+    private boolean clearing;          // keepoff: out past the blast after a hit, until it stops swelling
     private int replanCooldown;
 
     public AttackTask(int entityId) {
@@ -31,8 +32,8 @@ public final class AttackTask extends Task {
 
     public AttackTask(int entityId, boolean shield, String footwork) {
         super("attack");
-        if (footwork != null && !footwork.equals("back") && !footwork.equals("strafe")) {
-            throw new IllegalArgumentException("\"footwork\" is back or strafe");
+        if (footwork != null && !footwork.equals("back") && !footwork.equals("strafe") && !footwork.equals("keepoff")) {
+            throw new IllegalArgumentException("\"footwork\" is back, strafe or keepoff");
         }
         this.entityId = entityId;
         this.shield = shield;
@@ -78,8 +79,28 @@ public final class AttackTask extends Task {
         ticks++;
         float cooldown = p.getAttackCooldownProgress(0.5f);
         double dist = Math.sqrt(p.getEyePos().squaredDistanceTo(aim));
+        // Keep off (a creeper): after each hit, and whenever it swells, out past its blast; in again only once it
+        // stopped swelling. It dies, or blows up into the air — both end it (target gone).
+        if ("keepoff".equals(footwork)) {
+            boolean swelling = target instanceof net.minecraft.entity.mob.CreeperEntity cr && cr.getFuseSpeed() > 0;
+            if (swelling) clearing = true;
+            if (clearing && dist >= KEEP_OFF && !swelling) clearing = false;
+            if (clearing) {
+                if (child != null && !child.isFinished()) child.cancel("keep off");
+                child = null;
+                Agent.lookAt(p, aim, 45f);
+                if (safeStep(c, p, target, 0)) {
+                    a.input.back = true;
+                } else if (safeStep(c, p, target, 1)) {
+                    a.input.left = true;           // backed against an edge or a wall: out sideways
+                } else if (safeStep(c, p, target, -1)) {
+                    a.input.right = true;
+                }
+                return;
+            }
+        }
         // Footwork while the swing refills: never forward into its reach before the hit is ready.
-        if (footwork != null && cooldown < READY && dist <= reach + BACK_OFF) {
+        if (footwork != null && !"keepoff".equals(footwork) && cooldown < READY && dist <= reach + BACK_OFF) {
             if (child != null && !child.isFinished()) child.cancel("footwork");
             child = null;
             Agent.lookAt(p, aim, 45f);
@@ -121,6 +142,7 @@ public final class AttackTask extends Task {
             c.interactionManager.attackEntity(p, target);
             p.swingHand(Hand.MAIN_HAND);
             hits++;
+            if ("keepoff".equals(footwork)) clearing = true;
         } else if (shield && dev.anaka.util.InvUtil.id(p.getOffHandStack()).equals("minecraft:shield")) {
             if (!p.isUsingItem()) c.interactionManager.interactItem(p, Hand.OFF_HAND);
             a.holdUse = true;                                                  // up while the cooldown refills
@@ -131,6 +153,7 @@ public final class AttackTask extends Task {
     static final float READY = 0.85f;        // the swing nearly refilled: step in for it
     static final double BACK_OFF = 1.5;      // how far past reach the footwork stays (then it closes normally)
     static final int STRAFE_TICKS = 12;      // one sidestep's length before turning the other way
+    static final double KEEP_OFF = 5.0;      // eye-to-target distance a swelling creeper's blast does not reach
 
     /**
      * The cell one step away — backward from the target ({@code side} 0) or to its left (1) / right (-1) — holds the
