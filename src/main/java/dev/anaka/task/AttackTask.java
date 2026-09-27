@@ -12,12 +12,19 @@ import net.minecraft.util.math.Vec3d;
 /** Chases an entity and hits it whenever the attack cooldown is full. */
 public final class AttackTask extends Task {
     private final int entityId;
+    private final boolean shield;
     private int hits;
     private int replanCooldown;
 
     public AttackTask(int entityId) {
+        this(entityId, false);
+    }
+
+    /** {@code shield}: raise the offhand shield between swings (while the attack cooldown refills), lower it to hit. */
+    public AttackTask(int entityId, boolean shield) {
         super("attack");
         this.entityId = entityId;
+        this.shield = shield;
         this.timeoutTicks = 20 * 60;
     }
 
@@ -72,10 +79,15 @@ public final class AttackTask extends Task {
         }
         if (child != null && !child.isFinished()) child.cancel("in reach");
         child = null;
-        if (Agent.lookAt(p, aim, 45f) && p.getAttackCooldownProgress(0.5f) >= 0.95f) {
+        boolean aimed = Agent.lookAt(p, aim, 45f);
+        if (aimed && p.getAttackCooldownProgress(0.5f) >= 0.95f) {
+            if (p.isUsingItem()) c.interactionManager.stopUsingItem(p);      // lower the shield to swing
             c.interactionManager.attackEntity(p, target);
             p.swingHand(Hand.MAIN_HAND);
             hits++;
+        } else if (shield && dev.anaka.util.InvUtil.id(p.getOffHandStack()).equals("minecraft:shield")) {
+            if (!p.isUsingItem()) c.interactionManager.interactItem(p, Hand.OFF_HAND);
+            a.holdUse = true;                                                  // up while the cooldown refills
         }
     }
 

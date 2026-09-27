@@ -32,7 +32,7 @@ public final class TaskFactory {
             case "travel" -> new TravelTask(pos(o), dbl(o, "range", 1.5), bool(o, "break", true), bool(o, "place", true),
                 (int) dbl(o, "placeBudget", 64), avoidSet(o));
             case "use" -> new UseBlockTask(pos(o)).avoiding(avoidSet(o));
-            case "attack" -> new AttackTask(integer(o, "entity"));
+            case "attack" -> new AttackTask(integer(o, "entity"), bool(o, "shield", false));
             case "bed_bomb" -> new BedBombTask(pos(o), itemId(o));
             case "interact" -> new InteractEntityTask(integer(o, "entity"), o.has("item") ? itemId(o) : null);
             case "eat" -> new EatTask(o.has("item") ? itemId(o) : null);
