@@ -13,7 +13,11 @@ import net.minecraft.util.math.Vec3d;
 public final class AttackTask extends Task {
     private final int entityId;
     private final boolean shield;
+    /** Between swings: "back" steps out of the target's reach and in again as the cooldown fills (hit-and-back),
+     * "strafe" sidesteps across its line of fire (a ranged target); null stands and swings. */
+    private final String footwork;
     private int hits;
+    private int ticks;
     private int replanCooldown;
 
     public AttackTask(int entityId) {
@@ -22,9 +26,17 @@ public final class AttackTask extends Task {
 
     /** {@code shield}: raise the offhand shield between swings (while the attack cooldown refills), lower it to hit. */
     public AttackTask(int entityId, boolean shield) {
+        this(entityId, shield, null);
+    }
+
+    public AttackTask(int entityId, boolean shield, String footwork) {
         super("attack");
+        if (footwork != null && !footwork.equals("back") && !footwork.equals("strafe")) {
+            throw new IllegalArgumentException("\"footwork\" is back or strafe");
+        }
         this.entityId = entityId;
         this.shield = shield;
+        this.footwork = footwork;
         this.timeoutTicks = 20 * 60;
     }
 
@@ -63,6 +75,25 @@ public final class AttackTask extends Task {
         }
         Vec3d aim = new Vec3d(target.getX(), target.getY() + target.getHeight() * 0.6, target.getZ());
         double reach = WorldUtil.entityReach(p);
+        ticks++;
+        float cooldown = p.getAttackCooldownProgress(0.5f);
+        double dist = Math.sqrt(p.getEyePos().squaredDistanceTo(aim));
+        // Footwork while the swing refills: never forward into its reach before the hit is ready.
+        if (footwork != null && cooldown < READY && dist <= reach + BACK_OFF) {
+            if (child != null && !child.isFinished()) child.cancel("footwork");
+            child = null;
+            Agent.lookAt(p, aim, 45f);
+            if (footwork.equals("back")) {
+                if (dist < reach + 0.5 && safeStep(c, p, target, 0)) a.input.back = true;
+            } else {
+                int side = (ticks / STRAFE_TICKS) % 2 == 0 ? 1 : -1;       // left, then right: across the line
+                if (safeStep(c, p, target, side)) {
+                    if (side > 0) a.input.left = true;
+                    else a.input.right = true;
+                }
+            }
+            return;
+        }
         if (p.getEyePos().squaredDistanceTo(aim) > reach * reach) {
             if (straightLine(c, p, target)) {
                 // Close, level and open: run at it like a player would, facing it the whole way. A* would detour
@@ -85,7 +116,7 @@ public final class AttackTask extends Task {
         if (child != null && !child.isFinished()) child.cancel("in reach");
         child = null;
         boolean aimed = Agent.lookAt(p, aim, 45f);
-        if (aimed && p.getAttackCooldownProgress(0.5f) >= 0.95f) {
+        if (aimed && cooldown >= 0.95f) {
             if (p.isUsingItem()) c.interactionManager.stopUsingItem(p);      // lower the shield to swing
             c.interactionManager.attackEntity(p, target);
             p.swingHand(Hand.MAIN_HAND);
@@ -97,6 +128,24 @@ public final class AttackTask extends Task {
     }
 
     static final double STRAIGHT_MAX = 6.0;
+    static final float READY = 0.85f;        // the swing nearly refilled: step in for it
+    static final double BACK_OFF = 1.5;      // how far past reach the footwork stays (then it closes normally)
+    static final int STRAFE_TICKS = 12;      // one sidestep's length before turning the other way
+
+    /**
+     * The cell one step away — backward from the target ({@code side} 0) or to its left (1) / right (-1) — holds the
+     * body: floor under it, head room (WorldUtil.standable). A step back off a platform's edge is never taken.
+     */
+    private static boolean safeStep(MinecraftClient c, ClientPlayerEntity p, Entity target, int side) {
+        double dx = p.getX() - target.getX(), dz = p.getZ() - target.getZ();
+        double n = Math.sqrt(dx * dx + dz * dz);
+        if (n < 1e-6) return false;
+        dx /= n;
+        dz /= n;
+        double sx = side == 0 ? dx : -dz * side, sz = side == 0 ? dz : dx * side;
+        BlockPos cell = BlockPos.ofFloored(p.getX() + sx, p.getY() + 0.2, p.getZ() + sz);
+        return p.isOnGround() && WorldUtil.standable(c.world, cell);
+    }
 
     /** Within STRAIGHT_MAX, on the same level, and every cell on the line standable with head room. */
     private static boolean straightLine(MinecraftClient c, ClientPlayerEntity p, Entity target) {
