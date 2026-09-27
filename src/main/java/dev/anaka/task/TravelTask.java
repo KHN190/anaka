@@ -30,6 +30,7 @@ public final class TravelTask extends Task {
     private final boolean allowPlace;
     private final int placeBudget;
     private final LongOpenHashSet avoid;
+    private boolean voidBridge = true;
 
     private Pathfinder planner;
     private List<Pathfinder.Step> path;
@@ -59,6 +60,12 @@ public final class TravelTask extends Task {
         this.placeBudget = placeBudget;
         this.avoid = avoid;
         this.timeoutTicks = 20 * 900;
+    }
+
+    /** No floors out over the void (Pathfinder.Options.voidBridge): evades and explore legs. */
+    public TravelTask noVoidBridge() {
+        voidBridge = false;
+        return this;
     }
 
     @Override
@@ -101,7 +108,7 @@ public final class TravelTask extends Task {
                 // again while the stock shrank, so a trek bridged until "no building blocks to bridge with".
                 int budget = Math.min(placeBudget, stock(p));
                 planner = new Pathfinder(c.world, p, start, goal.reached(), target,
-                    new Pathfinder.Options(allowBreak, allowPlace, budget, avoid), 120000);
+                    new Pathfinder.Options(allowBreak, allowPlace, budget, avoid, voidBridge), 120000);
             }
             planner.step(PLAN_BUDGET_PER_TICK);
             if (!planner.isDone()) return;

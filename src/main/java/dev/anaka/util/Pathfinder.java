@@ -32,7 +32,23 @@ public final class Pathfinder {
 
     public record Step(BlockPos node, List<Action> actions) {}
 
-    public record Options(boolean allowBreak, boolean allowPlace, int placeBudget, LongSet avoid) {}
+    /** {@code voidBridge}: may a floor be placed where nothing (no ground, no water) lies within a survivable drop
+     * below it — a bridge out over the void. A walk with a known far side may; an evade or an explore leg may not
+     * (an explore leg bridged off the sky platform and a knockback threw the body 125 blocks down). */
+    public record Options(boolean allowBreak, boolean allowPlace, int placeBudget, LongSet avoid, boolean voidBridge) {
+        public Options(boolean allowBreak, boolean allowPlace, int placeBudget, LongSet avoid) {
+            this(allowBreak, allowPlace, placeBudget, avoid, true);
+        }
+    }
+
+    /** Pure over the world: nothing to land on — no solid block, no water — within MAX_DROP + 1 below `cell`. */
+    static boolean overVoid(net.minecraft.world.World world, BlockPos cell) {
+        for (int k = 1; k <= MAX_DROP + 1; k++) {
+            BlockPos below = cell.down(k);
+            if (WorldUtil.isWater(world, below) || !WorldUtil.passable(world, below)) return false;
+        }
+        return true;
+    }
 
     /** Walking only: no block is broken or placed. */
     public static final Options WALK_ONLY =
@@ -271,7 +287,8 @@ public final class Pathfinder {
                 boolean overLava = world.getFluidState(side.down()).isIn(FluidTags.LAVA)
                     || LavaGuard.nearLava(world, side.down());
                 boolean bodyDry = world.getFluidState(side).isEmpty() && world.getFluidState(side.up()).isEmpty();
-                if (bodyDry) offer(n, side, overLava ? BRIDGE + BRIDGE_OVER_LAVA : BRIDGE,
+                boolean voidOk = opts.voidBridge() || !overVoid(world, side.down());
+                if (bodyDry && voidOk) offer(n, side, overLava ? BRIDGE + BRIDGE_OVER_LAVA : BRIDGE,
                     List.of(new Action(Kind.FLOOR, side.down(), p.down())), 1, true);
             }
         }

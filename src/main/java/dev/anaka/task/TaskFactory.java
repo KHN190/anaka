@@ -29,8 +29,11 @@ public final class TaskFactory {
                 .avoiding(avoidSet(o));
             case "place" -> new PlaceTask(pos(o), itemId(o), optPos(o, "against"), optFacing(o)).avoiding(avoidSet(o));
             case "pillar" -> new PillarTask(itemId(o));
-            case "travel" -> new TravelTask(pos(o), dbl(o, "range", 1.5), bool(o, "break", true), bool(o, "place", true),
-                (int) dbl(o, "placeBudget", 64), avoidSet(o));
+            case "travel" -> {
+                TravelTask t = new TravelTask(pos(o), dbl(o, "range", 1.5), bool(o, "break", true), bool(o, "place", true),
+                    (int) dbl(o, "placeBudget", 64), avoidSet(o));
+                yield bool(o, "voidBridge", true) ? t : t.noVoidBridge();
+            }
             case "use" -> new UseBlockTask(pos(o)).avoiding(avoidSet(o));
             case "attack" -> new AttackTask(integer(o, "entity"), bool(o, "shield", false));
             case "bed_bomb" -> new BedBombTask(pos(o), itemId(o));
