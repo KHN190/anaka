@@ -25,7 +25,7 @@ public final class TravelTask extends Task {
     private static final int PLAN_BUDGET_PER_TICK = 3000;
 
     private final BlockPos target;
-    private final double range;
+    private final Pathfinder.Goal goal;
     private final boolean allowBreak;
     private final boolean allowPlace;
     private final int placeBudget;
@@ -42,9 +42,16 @@ public final class TravelTask extends Task {
 
     public TravelTask(BlockPos target, double range, boolean allowBreak, boolean allowPlace, int placeBudget,
                       LongOpenHashSet avoid) {
+        this(new Pathfinder.Goal(pos -> Math.sqrt(pos.getSquaredDistance(target)) <= range + 0.5, target),
+            allowBreak, allowPlace, placeBudget, avoid);
+    }
+
+    /** Travel until `goal` holds (an approach: within reach of a block, a face to place against). */
+    public TravelTask(Pathfinder.Goal goal, boolean allowBreak, boolean allowPlace, int placeBudget,
+                      LongOpenHashSet avoid) {
         super("travel");
-        this.target = target;
-        this.range = range;
+        this.goal = goal;
+        this.target = goal.target();
         this.allowBreak = allowBreak;
         this.allowPlace = allowPlace;
         this.placeBudget = placeBudget;
@@ -61,7 +68,7 @@ public final class TravelTask extends Task {
     }
 
     private boolean arrived(ClientPlayerEntity p) {
-        return Math.sqrt(p.getBlockPos().getSquaredDistance(target)) <= range + 0.5;
+        return goal.reached().test(p.getBlockPos());
     }
 
     private void replan(MinecraftClient c, String why, BlockPos culprit) {
@@ -91,8 +98,7 @@ public final class TravelTask extends Task {
                 // Never plan on more blocks than the bag holds right now: every replan used to get the full budget
                 // again while the stock shrank, so a trek bridged until "no building blocks to bridge with".
                 int budget = Math.min(placeBudget, stock(p));
-                planner = new Pathfinder(c.world, p, start,
-                    pos -> Math.sqrt(pos.getSquaredDistance(target)) <= range + 0.5, target,
+                planner = new Pathfinder(c.world, p, start, goal.reached(), target,
                     new Pathfinder.Options(allowBreak, allowPlace, budget, avoid), 120000);
             }
             planner.step(PLAN_BUDGET_PER_TICK);
@@ -138,7 +144,7 @@ public final class TravelTask extends Task {
             switch (act.kind()) {
                 case MINE -> {
                     if (WorldUtil.passable(c.world, act.pos())) continue;
-                    child = new MineTask(act.pos(), false, false);
+                    child = new MineTask(act.pos(), false, false).walkOnly();
                 }
                 case FLOOR -> {
                     if (!c.world.getBlockState(act.pos()).isReplaceable()) continue;
@@ -147,7 +153,7 @@ public final class TravelTask extends Task {
                         fail("no building blocks to bridge with");
                         return;
                     }
-                    child = new PlaceTask(act.pos(), block, act.against(), null);
+                    child = new PlaceTask(act.pos(), block, act.against(), null).walkOnly();
                 }
                 case PILLAR -> {
                     String block = pickBlock(p);

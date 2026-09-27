@@ -24,6 +24,7 @@ public final class MineTask extends Task {
     private boolean broken;
 
     private final java.util.Set<String> only;
+    private boolean walkOnly;
 
     public MineTask(BlockPos pos, boolean collect, boolean requireDrops) {
         this(pos, collect, requireDrops, null);
@@ -36,6 +37,12 @@ public final class MineTask extends Task {
         this.requireDrops = requireDrops;
         this.only = only;
         this.timeoutTicks = 20 * 180;
+    }
+
+    /** Approach on foot only: TravelTask's own steps, which must not start a travel inside the travel. */
+    public MineTask walkOnly() {
+        walkOnly = true;
+        return this;
     }
 
     @Override
@@ -84,7 +91,7 @@ public final class MineTask extends Task {
                     return;
                 }
                 // A spot to mine from is always close: 6 000 nodes, not 60 000 (unreachable blocks burned minutes).
-                child = new GotoTask(reachGoal(c, range), "walking to mine " + blockId, false, true, false, 6_000);
+                child = ApproachTask.to(reachGoal(c, range), "walking to mine " + blockId, true, 6_000, walkOnly);
             }
             if (runChild(c, a)) {
                 if (child.status() != Status.SUCCEEDED) {

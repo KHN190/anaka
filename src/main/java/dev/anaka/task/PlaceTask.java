@@ -40,6 +40,14 @@ public final class PlaceTask extends Task {
     private boolean oriented;
     private int orientedTicks;
 
+    private boolean walkOnly;
+
+    /** Approach on foot only: TravelTask's own steps, which must not start a travel inside the travel. */
+    public PlaceTask walkOnly() {
+        walkOnly = true;
+        return this;
+    }
+
     public PlaceTask(BlockPos pos, String itemId) {
         this(pos, itemId, null, null);
     }
@@ -121,7 +129,7 @@ public final class PlaceTask extends Task {
                     return;
                 }
                 // A stand spot to place from is always close: 6 000 nodes, not the 60 000 of a long walk.
-                child = new GotoTask(placeGoal(c, range), "walking to place " + itemId, false, false, false, 6_000);
+                child = ApproachTask.to(placeGoal(c, range), "walking to place " + itemId, false, 6_000, walkOnly);
             }
             if (runChild(c, a)) {
                 if (child.status() != Status.SUCCEEDED) {

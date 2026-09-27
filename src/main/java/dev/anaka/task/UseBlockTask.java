@@ -47,7 +47,7 @@ public final class UseBlockTask extends Task {
                 }
                 Pathfinder.Goal goal = new Pathfinder.Goal(
                     feet -> WorldUtil.visibleHit(c.world, p, WorldUtil.eyeAt(feet), pos, range - WorldUtil.REACH_MARGIN) != null, pos);
-                child = new GotoTask(goal, "walking to " + pos.toShortString(), false, false);
+                child = ApproachTask.to(goal, "walking to " + pos.toShortString(), false, 60_000, false);
             }
             if (runChild(c, a)) {
                 if (child.status() != Status.SUCCEEDED) {
