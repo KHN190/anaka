@@ -290,8 +290,12 @@ final class HttpApi {
         if (server != null) server.stop(0);
     }
 
+    /** When the last request came in: a client driven over HTTP is not an idle one (Agent keeps it awake). */
+    public static volatile long lastRequestMs;
+
     private void route(String path, boolean needsWorld, Handler handler) {
         server.createContext(path, exchange -> {
+            lastRequestMs = System.currentTimeMillis();
             try (exchange) {
                 if (exchange.getRequestHeaders().containsKey("Origin")) {
                     send(exchange, 403, error("browser requests are not allowed"));

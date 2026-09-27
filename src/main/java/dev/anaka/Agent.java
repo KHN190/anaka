@@ -130,7 +130,15 @@ public final class Agent {
         return queue.size();
     }
 
+    /** Requests this recent keep the client out of its idle frame limit. */
+    static final long AWAKE_MS = 60_000;
+
     public void onStartTick(MinecraftClient client) {
+        // Driven over HTTP is not idle: the "afk" frame limit (10 fps after a minute with no key or mouse) put every
+        // request behind a 100 ms frame — ~0.1 s a call, 2-4 s a brain round. Any request or control counts as input.
+        if (controlling || System.currentTimeMillis() - HttpApi.lastRequestMs < AWAKE_MS) {
+            client.getInactivityFpsLimiter().onInput();
+        }
         if (!controlling || client.player == null) return;
         if (client.player.input != input) client.player.input = input;
         client.options.useKey.setPressed(holdUse);
