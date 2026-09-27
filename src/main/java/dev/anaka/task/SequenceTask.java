@@ -83,11 +83,14 @@ public final class SequenceTask extends Task {
     }
 
     private int unreachableInARow;
+    /** Failures that mean "the body cannot get at this block from here" (one set: fast-fail counts these). */
+    static final java.util.List<String> UNREACHABLE =
+        java.util.List.of("cannot reach", "no line of sight", "no path found", MineTask.NO_STAND.trim());
 
     private void record(Task done) {
         String msg = done.message() == null ? "" : done.message();
-        boolean unreachable = done.status() != Status.SUCCEEDED
-            && (msg.contains("cannot reach") || msg.contains("no line of sight") || msg.contains("no path found"));
+        boolean unreachable = done.status() != Status.SUCCEEDED && UNREACHABLE.stream().anyMatch(msg::contains);
+        boolean again = !msg.startsWith(MineTask.NO_STAND);   // the same spot again is the same flip: not retried
         unreachableInARow = unreachable ? unreachableInARow + 1 : 0;
         if (unreachableInARow >= 2) {
             // Fail fast: two unreachable blocks in a row means this spot can't get at the rest either. Give the
@@ -106,7 +109,7 @@ public final class SequenceTask extends Task {
         }
         if (done.status() == Status.SUCCEEDED) {
             succeeded++;
-        } else if (!retrying) {
+        } else if (!retrying && again) {
             retry.add(currentStep);
         } else {
             JsonObject f = new JsonObject();

@@ -20,6 +20,10 @@ public final class MineTask extends Task {
     private String blockId;
     private String toolId = "";
     private int approaches;
+    /** Times sight of the block was lost mid-break (mining -> walking back): the stand spot does not hold. */
+    private int flips;
+    static final int FLIP_LIMIT = 3;
+    static final String NO_STAND = "cannot hold a stand spot at ";
     private boolean breaking;
     private boolean broken;
 
@@ -91,6 +95,12 @@ public final class MineTask extends Task {
             if (breaking) {
                 c.interactionManager.cancelBlockBreaking();
                 breaking = false;
+                // Mining <-> approaching every 0.3 s on one block (mine_while_hungry: ~10 times, y 198<->199): no
+                // spot holds the body in sight of it. Give the block up instead of walking back again.
+                if (++flips >= FLIP_LIMIT) {
+                    fail(NO_STAND + pos.toShortString());
+                    return;
+                }
             }
             if (child == null) {
                 if (++approaches > 3) {
