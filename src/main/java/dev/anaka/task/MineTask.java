@@ -26,6 +26,10 @@ public final class MineTask extends Task {
     static final String NO_STAND = "cannot hold a stand spot at ";
     private boolean breaking;
     private boolean broken;
+    /** The last hit while breaking: a tick without sight from a spot that still holds keeps breaking toward it. */
+    private BlockHitResult lastHit;
+    private int blindTicks;
+    static final int BLIND_TICKS = 6;
 
     private final java.util.Set<String> only;
     private boolean walkOnly;
@@ -91,6 +95,13 @@ public final class MineTask extends Task {
 
         double range = p.getBlockInteractionRange();
         BlockHitResult hit = WorldUtil.visibleHit(c.world, p, p.getEyePos(), pos, range - 0.2);
+        if (hit == null && breaking && lastHit != null && ++blindTicks <= BLIND_TICKS
+                && holds(c, p.getBlockPos(), range)) {
+            // the body still stands on a spot that holds: a tick of lost sight (the body settling) is not a flip
+            hit = lastHit;
+        } else if (hit != null) {
+            blindTicks = 0;
+        }
         if (hit == null) {
             if (breaking) {
                 c.interactionManager.cancelBlockBreaking();
@@ -139,13 +150,27 @@ public final class MineTask extends Task {
             c.interactionManager.updateBlockBreakingProgress(pos, hit.getSide());
             p.swingHand(Hand.MAIN_HAND);
             breaking = true;
+            lastHit = hit;
         }
     }
 
     private Pathfinder.Goal reachGoal(MinecraftClient c, double range) {
+        return new Pathfinder.Goal(feet -> holds(c, feet, range), pos);
+    }
+
+    /** A stand spot that holds while the block breaks: never on the block itself (its own column above: the body
+     * stands on what it mines, and an ore one down under flat ground was picked that way), and the block in sight
+     * from anywhere the body settles in the cell (the centre and 0.3 off it each way), not only from its centre —
+     * the arrival leaves the body off-centre, so a spot seen only from the centre lost sight mid-break (NO_STAND). */
+    private boolean holds(MinecraftClient c, BlockPos feet, double range) {
+        if (feet.getX() == pos.getX() && feet.getZ() == pos.getZ() && feet.getY() > pos.getY()) return false;
         ClientPlayerEntity p = c.player;
-        return new Pathfinder.Goal(
-            feet -> WorldUtil.visibleHit(c.world, p, WorldUtil.eyeAt(feet), pos, range - 0.5) != null, pos);
+        net.minecraft.util.math.Vec3d eye = WorldUtil.eyeAt(feet);
+        double[][] offs = {{0, 0}, {0.3, 0}, {-0.3, 0}, {0, 0.3}, {0, -0.3}};
+        for (double[] o : offs) {
+            if (WorldUtil.visibleHit(c.world, p, eye.add(o[0], 0, o[1]), pos, range - 0.5) == null) return false;
+        }
+        return true;
     }
 
     @Override
