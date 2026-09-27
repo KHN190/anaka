@@ -357,7 +357,8 @@ public final class GotoTask extends Task {
     /** In the water, the next node is dry land above the feet (or a solid-floored cell out of the water). */
     private static boolean ashoreNext(MinecraftClient c, ClientPlayerEntity p, BlockPos feet, BlockPos wp) {
         return p.isTouchingWater() && !WorldUtil.isWater(c.world, wp)
-            && (wp.getY() >= feet.getY() + 1 || !c.world.getBlockState(wp.down()).isAir());
+            && (wp.getY() >= feet.getY() + 1
+                || !c.world.getBlockState(wp.down()).isAir() && !WorldUtil.isWater(c.world, wp.down()));
     }
 
     /** Floating bodies drift and bob, so accept a wider radius and ignore height while swimming — for water nodes;
