@@ -45,6 +45,9 @@ public final class TaskFactory {
                 ? new LookTask(new Vec3d(dbl(o, "x", 0), dbl(o, "y", 0), dbl(o, "z", 0)), Float.NaN, 0, 0)
                 : new LookTask(null, (float) dbl(o, "yaw", 0), (float) dbl(o, "pitch", 0), 0);
             case "wait" -> new LookTask(null, Float.NaN, 0, (int) dbl(o, "ticks", 20));
+            case "input" -> new InputTask(new java.util.HashSet<>(strings(o, "keys")),
+                o.has("yaw") ? (float) dbl(o, "yaw", 0) : Float.NaN, (int) dbl(o, "ticks", 20),
+                o.has("until") ? o.get("until").getAsString() : null);
             case "use_item" -> new UseItemTask(itemId(o),
                 o.has("x") ? new Vec3d(dbl(o, "x", 0), dbl(o, "y", 0), dbl(o, "z", 0)) : null,
                 (float) dbl(o, "yaw", 0), (float) dbl(o, "pitch", 0), bool(o, "onBlock", false), (int) dbl(o, "holdTicks", 0));
@@ -138,6 +141,13 @@ public final class TaskFactory {
                 out.add(itemId(tmp));
             }
         }
+        return out;
+    }
+
+    private static List<String> strings(JsonObject o, String key) {
+        if (!o.has(key) || !o.get(key).isJsonArray()) throw new IllegalArgumentException("\"" + key + "\" array is required");
+        List<String> out = new ArrayList<>();
+        for (JsonElement e : o.getAsJsonArray(key)) out.add(e.getAsString());
         return out;
     }
 

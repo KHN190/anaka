@@ -221,15 +221,6 @@ public final class GotoTask extends Task {
         a.input.forward = yawError < (horizontal < 1.5 ? 25f : 50f);
         a.input.sprint = sprint && path.size() - index > 3 && p.getHungerManager().getFoodLevel() > 6 && !p.isTouchingWater();
         boolean climb = dy > 0.5 && horizontal < 1.6;
-        if (ashoreNext(c, p, feet, wp)) {
-            // Climbing out onto the bank: push into it with jump held until the ground takes us (the game lifts a
-            // swimmer pressing into a block at the surface). Waiting for the turn to finish left the body bobbing
-            // at the bank (reach_land_swim: 10009.7, y 198.2-199.9, never out).
-            a.input.forward = true;
-            a.input.jump = true;
-            a.input.sprint = false;
-            return;
-        }
         a.input.jump = (p.isOnGround() && (climb || p.horizontalCollision))
             || (p.isTouchingWater() && (dy > -0.5 || p.isSubmergedInWater()))
             || (p.isClimbing() && dy > 0.3); // holding jump climbs a ladder
