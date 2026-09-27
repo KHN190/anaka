@@ -42,6 +42,11 @@ public abstract class Task {
         return type;
     }
 
+    /** Only moving right now (the hand is free): what AutoEat may eat during. */
+    public boolean walking() {
+        return child != null && child.walking();
+    }
+
     public final void run(MinecraftClient c, Agent a) {
         if (isFinished()) return;
         try {

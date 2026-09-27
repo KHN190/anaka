@@ -29,6 +29,11 @@ public final class AttackTask extends Task {
     }
 
     @Override
+    public boolean walking() {
+        return false;                        // the hand swings: never eat in a fight's chase
+    }
+
+    @Override
     public String describe() {
         return "attacking entity " + entityId + " (" + hits + " hits)";
     }

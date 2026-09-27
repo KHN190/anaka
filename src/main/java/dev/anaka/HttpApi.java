@@ -204,6 +204,12 @@ final class HttpApi {
             Agent.get().release(c, "released via API");
             return ok();
         }));
+        route("/autoeat", true, req -> onClient(c -> {
+            java.util.List<String> foods = new java.util.ArrayList<>();
+            if (req.body.has("foods")) req.body.getAsJsonArray("foods").forEach(e -> foods.add(e.getAsString()));
+            dev.anaka.util.AutoEat.configure(req.body.has("below") ? req.body.get("below").getAsInt() : 0, foods);
+            return ok();
+        }));
         route("/control", true, req -> onClient(c -> {
             Agent.get().setPaused(c, req.body.get("paused").getAsBoolean());
             return ok();

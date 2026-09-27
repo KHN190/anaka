@@ -75,6 +75,11 @@ public final class GotoTask extends Task {
         return new GotoTask(goal, "walking to " + target.toShortString(), allowPartial, sprint, useBoat);
     }
 
+    @Override
+    public boolean walking() {
+        return boat == null;
+    }
+
     /** Arrive on reaching the goal cell, without settling into its centre: a chase, not a placement. */
     public GotoTask noCentering() {
         center = false;
