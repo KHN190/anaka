@@ -181,9 +181,19 @@ final class WorldInfo {
         return o;
     }
 
+    /**
+     * An open face a body can work: a free neighbour cell that a standing body occupies with its feet or head, or
+     * looks up into from right under it. "Free" alone listed faces onto sealed pockets and portal interiors (a
+     * stone block behind an obsidian frame was mined for "277 positions explored" four times over).
+     */
     private static boolean exposed(MinecraftClient c, BlockPos pos) {
         for (Direction d : Direction.values()) {
-            if (WorldUtil.passable(c.world, pos.offset(d)) && !c.world.getBlockState(pos.offset(d)).isOpaqueFullCube()) return true;
+            BlockPos n = pos.offset(d);
+            BlockState s = c.world.getBlockState(n);
+            if (!WorldUtil.passable(c.world, n) || s.isOpaqueFullCube()) continue;
+            if (s.isOf(net.minecraft.block.Blocks.NETHER_PORTAL) || s.isOf(net.minecraft.block.Blocks.END_PORTAL)) continue;
+            if (WorldUtil.standable(c.world, n) || WorldUtil.standable(c.world, n.down())
+                || WorldUtil.standable(c.world, n.down(2))) return true;
         }
         return false;
     }
