@@ -22,6 +22,15 @@ public final class TaskFactory {
     public static Task create(MinecraftClient c, JsonObject o) {
         String type = str(o, "type", null);
         if (type == null) throw new IllegalArgumentException("missing \"type\"");
+        try {
+            return build(c, o, type);
+        } catch (UnsupportedOperationException | ClassCastException | IllegalStateException e) {
+            // a field of the wrong shape a typed read below did not name: still the caller's mistake, a 400
+            throw new IllegalArgumentException(type + ": a field has the wrong type (" + e.getMessage() + ")");
+        }
+    }
+
+    private static Task build(MinecraftClient c, JsonObject o, String type) {
         return switch (type) {
             case "goto" -> GotoTask.near(pos(o), dbl(o, "range", 1.0), bool(o, "partial", true), bool(o, "sprint", true),
                 bool(o, "useBoat", true));
@@ -50,7 +59,7 @@ public final class TaskFactory {
             case "wait" -> new LookTask(null, Float.NaN, 0, (int) dbl(o, "ticks", 20));
             case "input" -> new InputTask(new java.util.HashSet<>(strings(o, "keys")),
                 o.has("yaw") ? (float) dbl(o, "yaw", 0) : Float.NaN, (int) dbl(o, "ticks", 20),
-                o.has("until") ? o.get("until").getAsString() : null);
+                str(o, "until", null));
             case "use_item" -> new UseItemTask(itemId(o),
                 o.has("x") ? new Vec3d(dbl(o, "x", 0), dbl(o, "y", 0), dbl(o, "z", 0)) : null,
                 (float) dbl(o, "yaw", 0), (float) dbl(o, "pitch", 0), bool(o, "onBlock", false), (int) dbl(o, "holdTicks", 0));
@@ -87,8 +96,8 @@ public final class TaskFactory {
 
 
     private static BlockPos pos(JsonObject o) {
-        if (!o.has("x") || !o.has("y") || !o.has("z")) throw new IllegalArgumentException("x, y, z are required");
-        return BlockPos.ofFloored(o.get("x").getAsDouble(), o.get("y").getAsDouble(), o.get("z").getAsDouble());
+        if (!present(o, "x") || !present(o, "y") || !present(o, "z")) throw new IllegalArgumentException("x, y, z are required");
+        return BlockPos.ofFloored(number(o, "x").getAsDouble(), number(o, "y").getAsDouble(), number(o, "z").getAsDouble());
     }
 
     private static String itemId(JsonObject o) {
@@ -130,20 +139,40 @@ public final class TaskFactory {
         return out;
     }
 
+    /** Present and not JSON null: an optional field sent as null is absent (its default). */
+    static boolean present(JsonObject o, String key) {
+        return o.has(key) && !o.get(key).isJsonNull();
+    }
+
+    /** The field as a number, or a 400 naming it: a null or a string where a number belongs was a 500 (JsonNull). */
+    private static JsonElement number(JsonObject o, String key) {
+        JsonElement e = o.get(key);
+        if (e == null || e.isJsonNull()) throw new IllegalArgumentException("\"" + key + "\" is required (a number)");
+        if (!e.isJsonPrimitive() || !e.getAsJsonPrimitive().isNumber())
+            throw new IllegalArgumentException("\"" + key + "\" must be a number, not " + e);
+        return e;
+    }
+
     static String str(JsonObject o, String key, String def) {
-        return o.has(key) && !o.get(key).isJsonNull() ? o.get(key).getAsString() : def;
+        if (!present(o, key)) return def;
+        JsonElement e = o.get(key);
+        if (!e.isJsonPrimitive()) throw new IllegalArgumentException("\"" + key + "\" must be a string, not " + e);
+        return e.getAsString();
     }
 
     static double dbl(JsonObject o, String key, double def) {
-        return o.has(key) ? o.get(key).getAsDouble() : def;
+        return present(o, key) ? number(o, key).getAsDouble() : def;
     }
 
     static boolean bool(JsonObject o, String key, boolean def) {
-        return o.has(key) ? o.get(key).getAsBoolean() : def;
+        if (!present(o, key)) return def;
+        JsonElement e = o.get(key);
+        if (!e.isJsonPrimitive() || !e.getAsJsonPrimitive().isBoolean())
+            throw new IllegalArgumentException("\"" + key + "\" must be true or false, not " + e);
+        return e.getAsBoolean();
     }
 
     static int integer(JsonObject o, String key) {
-        if (!o.has(key)) throw new IllegalArgumentException("\"" + key + "\" is required");
-        return o.get(key).getAsInt();
+        return number(o, key).getAsInt();
     }
 }
