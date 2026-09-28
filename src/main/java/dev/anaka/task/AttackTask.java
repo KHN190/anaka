@@ -18,9 +18,16 @@ public final class AttackTask extends Task {
     private int hits;
     private int ticks;
     private boolean clearing;          // keepoff: out past the blast after a hit, until it stops swelling
+    private double keepOff = KEEP_OFF; // keepoff: how far out (the client's fuse_stop_blocks + 0.5)
 
     public AttackTask(int entityId) {
         this(entityId, null);
+    }
+
+    public AttackTask keepingOff(double blocks) {
+        if (blocks <= 0) throw new IllegalArgumentException("\"keepOff\" must be > 0");
+        keepOff = blocks;
+        return this;
     }
 
     /** The shield is the combat reflex's (combat.Reflex: raised for a predicted hit, facing it), not this task's. */
@@ -85,7 +92,7 @@ public final class AttackTask extends Task {
         if ("keepoff".equals(footwork)) {
             boolean swelling = target instanceof net.minecraft.entity.mob.CreeperEntity cr && cr.getFuseSpeed() > 0;
             if (swelling) clearing = true;
-            if (clearing && dist >= KEEP_OFF && !swelling) clearing = false;
+            if (clearing && dist >= keepOff && !swelling) clearing = false;
             if (clearing) {
                 endChase("keep off");
                 Agent.lookAt(p, aim, 45f);
@@ -142,7 +149,7 @@ public final class AttackTask extends Task {
     static final float READY = 0.85f;        // the swing nearly refilled: step in for it
     static final double BACK_OFF = 1.5;      // how far past reach the footwork stays (then it closes normally)
     static final int STRAFE_TICKS = 12;      // one sidestep's length before turning the other way
-    static final double KEEP_OFF = 5.0;      // eye-to-target distance a swelling creeper's blast does not reach
+    static final double KEEP_OFF = 5.0;      // default keepOff: eye-to-target distance past a swelling creeper's blast
 
     /**
      * The cell one step away — backward from the target ({@code side} 0) or to its left (1) / right (-1) — holds the

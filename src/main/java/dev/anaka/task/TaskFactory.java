@@ -45,7 +45,7 @@ public final class TaskFactory {
             }
             case "use" -> new UseBlockTask(pos(o)).avoiding(avoidSet(o));
             case "attack" -> new AttackTask(integer(o, "entity"), str(o, "footwork", null))
-                .holding(str(o, "item", null));
+                .keepingOff(dbl(o, "keepOff", AttackTask.KEEP_OFF)).holding(str(o, "item", null));
             case "bed_bomb" -> new BedBombTask(pos(o), itemId(o));
             case "interact" -> new InteractEntityTask(integer(o, "entity"), o.has("item") ? itemId(o) : null);
             case "eat" -> new EatTask(o.has("item") ? itemId(o) : null);
