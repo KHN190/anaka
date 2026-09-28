@@ -7,6 +7,7 @@ import dev.anaka.util.WorldUtil;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
@@ -33,6 +34,8 @@ public final class MineTask extends Task {
 
     private final java.util.Set<String> only;
     private boolean walkOnly;
+    /** The item Python named to break with (null: what is in hand, "hand": a free hand). */
+    private String tool;
     private boolean down;
     private it.unimi.dsi.fastutil.longs.LongOpenHashSet avoid;
 
@@ -53,6 +56,12 @@ public final class MineTask extends Task {
     public MineTask walkOnly() {
         walkOnly = true;
         down = true;              // a route's own digging goes down through the column it stands in
+        return this;
+    }
+
+    /** Break with the item Python named (the task's "item"). */
+    public MineTask holding(String item) {
+        tool = item;
         return this;
     }
 
@@ -145,17 +154,22 @@ public final class MineTask extends Task {
         child = null;
 
         if (breaking && !InvUtil.id(p.getMainHandStack()).equals(toolId)) {
-            // The tool broke (or was moved) mid-break: restart with the next best tool.
+            // The tool broke (or was moved) mid-break: restart holding the named item again.
             c.interactionManager.cancelBlockBreaking();
             breaking = false;
             result.addProperty("toolBroke", toolId);
         }
         if (!breaking) {
-            if (!InvUtil.selectBestTool(c, s) && requireDrops) {
-                fail("no tool in inventory can harvest " + blockId);
+            if (!InvUtil.holdItem(c, tool)) {
+                fail(tool + " is not in the inventory");
                 return;
             }
-            toolId = InvUtil.id(p.getMainHandStack());
+            ItemStack held = p.getMainHandStack();
+            if (requireDrops && s.isToolRequired() && (held.isEmpty() || !held.getItem().isCorrectForDrops(held, s))) {
+                fail("the " + (held.isEmpty() ? "bare hand" : InvUtil.id(held)) + " cannot harvest " + blockId);
+                return;
+            }
+            toolId = InvUtil.id(held);
         }
         if (Agent.lookAt(p, hit.getPos(), 180f)) {        // the view set on the block at once, the break begun this tick
             c.interactionManager.updateBlockBreakingProgress(pos, hit.getSide());

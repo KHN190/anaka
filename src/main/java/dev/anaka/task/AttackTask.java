@@ -51,9 +51,17 @@ public final class AttackTask extends Task {
         return "attacking entity " + entityId + " (" + hits + " hits)";
     }
 
+    /** The weapon Python named (the task's "item"; null keeps what is in hand). */
+    private String weapon;
+
+    public AttackTask holding(String item) {
+        weapon = item;
+        return this;
+    }
+
     @Override
     protected void start(MinecraftClient c, Agent a) {
-        dev.anaka.util.InvUtil.selectBestWeapon(c);
+        if (!dev.anaka.util.InvUtil.holdItem(c, weapon)) result.addProperty("weaponMissing", weapon);
     }
 
     @Override

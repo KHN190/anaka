@@ -63,6 +63,14 @@ public final class TravelTask extends Task {
     }
 
     /** No floors out over the void (Pathfinder.Options.voidBridge): evades and explore legs. */
+    /** The item Python named for the route's digging (the task's "item"). */
+    private String tool;
+
+    public TravelTask holding(String item) {
+        tool = item;
+        return this;
+    }
+
     public TravelTask noVoidBridge() {
         voidBridge = false;
         return this;
@@ -153,7 +161,7 @@ public final class TravelTask extends Task {
             switch (act.kind()) {
                 case MINE -> {
                     if (WorldUtil.passable(c.world, act.pos())) continue;
-                    child = new MineTask(act.pos(), false, false).walkOnly();
+                    child = new MineTask(act.pos(), false, false).walkOnly().holding(tool);
                 }
                 case FLOOR -> {
                     if (!c.world.getBlockState(act.pos()).isReplaceable()) continue;

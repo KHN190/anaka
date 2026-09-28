@@ -1,7 +1,6 @@
 package dev.anaka.util;
 
 import com.google.gson.JsonObject;
-import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.component.DataComponentTypes;
@@ -84,30 +83,16 @@ public final class InvUtil {
     }
 
     /**
-     * Selects the fastest tool that still yields drops. A tool is only used when it beats the bare hand, so
-     * durability isn't wasted on blocks any item breaks equally fast. Returns false when no item can harvest.
+     * Holds the item Python named for a task — the one selection the jar makes: {@code null} keeps what is in hand,
+     * "hand" frees the hand (an empty hotbar slot, else anything that takes no wear), an item id selects a stack of
+     * it with wear left. Returns false when the named item is not carried.
      */
-    public static boolean selectBestTool(MinecraftClient c, BlockState state) {
+    public static boolean holdItem(MinecraftClient c, String itemId) {
+        if (itemId == null) return true;
         ClientPlayerEntity p = c.player;
-        PlayerInventory inv = p.getInventory();
-        double handScore = score(ItemStack.EMPTY, state);
-        int best = -1;
-        double bestScore = handScore + 0.5;
-        for (int i = 0; i < MAIN_SLOTS; i++) {
-            ItemStack s = inv.getStack(i);
-            if (s.isEmpty() || (s.isDamageable() && s.getMaxDamage() - s.getDamage() <= 1)) continue;
-            double sc = score(s, state) + (i < 9 ? 0.01 : 0);
-            if (sc > bestScore) {
-                bestScore = sc;
-                best = i;
-            }
-        }
-        if (best >= 0) {
-            selectIndex(c, best);
-            return true;
-        }
-        if (state.isToolRequired()) return false;
-        if (p.getMainHandStack().isDamageable()) {
+        if (itemId.equals("hand")) {
+            PlayerInventory inv = p.getInventory();
+            if (!p.getMainHandStack().isDamageable()) return true;
             int spare = -1;
             for (int i = 0; i < 9; i++) {
                 ItemStack s = inv.getStack(i);
@@ -118,41 +103,10 @@ public final class InvUtil {
                 if (spare < 0 && !s.isDamageable()) spare = i;
             }
             if (spare >= 0) inv.setSelectedSlot(spare);
+            return true;
         }
-        return true;
-    }
-
-    private static final String[] PRECIOUS = {"minecraft:iron_", "minecraft:golden_", "minecraft:diamond_", "minecraft:netherite_"};
-
-    private static double score(ItemStack s, BlockState state) {
-        boolean drops = !state.isToolRequired() || (!s.isEmpty() && s.getItem().isCorrectForDrops(s, state));
-        float speed = s.isEmpty() ? 1f : s.getItem().getMiningSpeed(s, state);
-        double score = (drops ? 1000 : 0) + speed;
-        // Save precious tools for blocks that need them: on soft blocks a stone tool is nearly as good.
-        if (drops && speed > 1f && state.getBlock().getHardness() <= 3.0f) {
-            String id = id(s);
-            for (String prefix : PRECIOUS) {
-                if (id.startsWith(prefix)) {
-                    score -= 3.5;
-                    break;
-                }
-            }
-        }
-        return score;
-    }
-
-    private static final String[] WEAPONS = {
-        "minecraft:netherite_sword", "minecraft:diamond_sword", "minecraft:iron_sword", "minecraft:stone_sword",
-        "minecraft:netherite_axe", "minecraft:diamond_axe", "minecraft:iron_axe", "minecraft:golden_sword",
-        "minecraft:wooden_sword", "minecraft:stone_axe"};
-
-    /** Puts the strongest weapon in hand. Returns false if there is none. */
-    public static boolean selectBestWeapon(MinecraftClient c) {
-        for (String weapon : WEAPONS) {
-            int index = find(c.player, s -> id(s).equals(weapon) && (!s.isDamageable() || s.getMaxDamage() - s.getDamage() > 1));
-            if (index >= 0) return selectIndex(c, index);
-        }
-        return false;
+        if (id(p.getMainHandStack()).equals(itemId)) return true;
+        return select(c, s -> id(s).equals(itemId) && (!s.isDamageable() || s.getMaxDamage() - s.getDamage() > 1));
     }
 
     public static boolean isFood(ItemStack s) {
