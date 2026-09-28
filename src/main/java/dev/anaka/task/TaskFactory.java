@@ -39,7 +39,9 @@ public final class TaskFactory {
             case "bed_bomb" -> new BedBombTask(pos(o), itemId(o));
             case "interact" -> new InteractEntityTask(integer(o, "entity"), o.has("item") ? itemId(o) : null);
             case "eat" -> new EatTask(o.has("item") ? itemId(o) : null);
-            case "collect" -> new CollectTask(null, dbl(o, "radius", 8.0), 20, onlySet(o));
+            // centred on x/y/z when given (a batch's closing sweep: its cells' centre), else round the body
+            case "collect" -> new CollectTask(o.has("x") ? pos(o) : null, dbl(o, "radius", 8.0), (int) dbl(o, "idle", 20),
+                onlySet(o));
             case "craft" -> new CraftTask(pattern(o), (int) dbl(o, "count", 1));
             case "look" -> o.has("x")
                 ? new LookTask(new Vec3d(dbl(o, "x", 0), dbl(o, "y", 0), dbl(o, "z", 0)), Float.NaN, 0, 0)
@@ -51,56 +53,8 @@ public final class TaskFactory {
             case "use_item" -> new UseItemTask(itemId(o),
                 o.has("x") ? new Vec3d(dbl(o, "x", 0), dbl(o, "y", 0), dbl(o, "z", 0)) : null,
                 (float) dbl(o, "yaw", 0), (float) dbl(o, "pitch", 0), bool(o, "onBlock", false), (int) dbl(o, "holdTicks", 0));
-            case "build" -> build(c, o);
-            case "mine_many" -> mineMany(c, o);
             default -> throw new IllegalArgumentException("unknown task type \"" + type + "\"");
         };
-    }
-
-    private static Task build(MinecraftClient c, JsonObject o) {
-        List<SequenceTask.Step> steps = new ArrayList<>();
-        it.unimi.dsi.fastutil.longs.LongOpenHashSet avoid = avoidSet(o);
-        for (JsonObject b : objects(o, "blocks")) {
-            BlockPos p = pos(b);
-            String item = itemId(b);
-            Block target = Block.getBlockFromItem(Registries.ITEM.get(Identifier.of(item)));
-            if (c.world.getBlockState(p).isOf(target)) continue;
-            BlockPos against = optPos(b, "against");
-            Direction facing = optFacing(b);
-            steps.add(new SequenceTask.Step(p, () -> new PlaceTask(p, item, against, facing).avoiding(avoid)));
-        }
-        return new SequenceTask("build", steps, SequenceTask.Order.BUILD, null);
-    }
-
-    private static Task mineMany(MinecraftClient c, JsonObject o) {
-        boolean collect = bool(o, "collect", true);
-        boolean requireDrops = bool(o, "requireDrops", true);
-        it.unimi.dsi.fastutil.longs.LongOpenHashSet avoid = avoidSet(o);
-        List<SequenceTask.Step> steps = new ArrayList<>();
-        for (JsonObject b : objects(o, "blocks")) {
-            BlockPos p = pos(b);
-            // Drops near the next block get picked up on the way; one sweep at the end gets the rest.
-            steps.add(new SequenceTask.Step(p, () -> new MineTask(p, false, requireDrops).avoiding(avoid)));
-        }
-        java.util.Set<String> only = onlySet(o);
-        // One sweep over the whole batch: centred on its blocks, reaching the farthest of them. Centred on where the
-        // body ended it missed the other end of a batch 8 blocks wide (ban_needs_a_failure: 2 ores mined, 1 kept).
-        BlockPos centre = batchCentre(steps);
-        double reach = 5 + steps.stream().mapToDouble(s -> Math.sqrt(s.pos().getSquaredDistance(centre))).max().orElse(0);
-        return new SequenceTask("mine_many", steps, SequenceTask.Order.MINE,
-            collect ? () -> new CollectTask(centre, reach, 10, only) : null);   // what fell near the batch, not a walk per item
-    }
-
-    private static BlockPos batchCentre(List<SequenceTask.Step> steps) {
-        if (steps.isEmpty()) return null;
-        long x = 0, y = 0, z = 0;
-        for (SequenceTask.Step s : steps) {
-            x += s.pos().getX();
-            y += s.pos().getY();
-            z += s.pos().getZ();
-        }
-        int n = steps.size();
-        return new BlockPos((int) Math.round((double) x / n), (int) Math.round((double) y / n), (int) Math.round((double) z / n));
     }
 
     /** Optional "only": [item ids] — the collect sweep walks only to these drops (a nearly full bag skips junk). */

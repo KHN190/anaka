@@ -47,26 +47,23 @@ rest of that chain.
 Add `?wait=60` to block until the task (or the last task of a chain) finishes. `GET /task?id=N&wait=30` polls or
 waits; `GET /tasks` lists recent tasks. `POST /stop` cancels everything.
 
-Tasks are built for efficiency: `goto` sprints and walks straight lines where the ground allows; `mine_many`
-chooses the nearest next block (never undermining a pending block above) and sweeps up drops once at the end;
-`build` finishes each layer before the next; `craft` fills the grid for the whole count and shift-clicks once.
-Failed steps in `mine_many`/`build` are retried once after the rest. A failed walk reports the `closest` reachable
-position. If a tool breaks mid-block, mining switches to the next best tool automatically.
+Tasks are built for efficiency: `goto` sprints and walks straight lines where the ground allows; `craft` fills the
+grid for the whole count and shift-clicks once. Batches of blocks (many mines, a build) are chains of single `mine` /
+`place` tasks planned by the client (order, retry once, fail fast, a closing `collect`). A failed walk reports the
+`closest` reachable position. If a tool breaks mid-block, mining switches to the next best tool automatically.
 
 | `type` | Fields | What it does |
 |---|---|---|
 | `goto` | `x y z`, `range`=1, `sprint`=false, `partial`=true | A* pathfinding, walks/jumps/swims there. |
 | `mine` | `x y z`, `collect`=true, `requireDrops`=true | Walks into reach, picks the best tool, breaks the block, picks up drops. |
-| `mine_many` | `blocks: [{x,y,z}]`, `collect`, `requireDrops` | Mines a list top-down. |
 | `place` | `x y z`, `item`, `against` {x,y,z}, `yaw`, `pitch` | Places a block from the inventory against a neighbouring face. `against` picks the neighbour to click (a hopper outputs into it); `yaw`/`pitch` hold that body orientation during the click (pistons, observers, furnaces, repeaters take their facing from it). |
-| `build` | `blocks: [{x,y,z,item,against,yaw,pitch}]` | Places a list bottom-up, skipping blocks already correct, retrying failures once. |
 | `travel` | `x y z`, `range`=1.5, `break`=true, `place`=true, `placeBudget`=64, `avoid: [{x,y,z}]` | Gets there by any legal means with one planner: walk, swim, climb, break through (only blocks a carried tool can harvest, never next to lava/water), bridge and pillar with carried building blocks. A failed step blacklists its cell and replans. |
 | `pillar` | `item` | Centres, looks down, jumps and places the block underneath: ends one block higher. |
 | `use` | `x y z` | Right-clicks a block (chest, crafting table, furnace, door, bed…). |
 | `attack` | `entity` (id) | Chases and hits the entity with full attack cooldown. |
 | `eat` | `item` (optional) | Eats the given food, or any food. |
 | `craft` | `pattern` (4 or 9 item ids / null, row-major), `count`=1 | Fills the open crafting grid and takes the result. 3×3 needs `use` on a crafting table first. |
-| `collect` | `radius`=8 | Picks up nearby dropped items. |
+| `collect` | `radius`=8, `x y z` (centre, else the body), `idle`=20, `only` | Picks up nearby dropped items. |
 | `use_item` | `item`, `x y z` or `yaw pitch`, `onBlock`=false, `holdTicks`=0 | Aims and right-clicks with an item: on the block under the crosshair (flint and steel, bucket placement) or in the air (fill bucket, throw eye of ender); `holdTicks` holds then releases (bow). |
 | `look` | `x y z` or `yaw pitch` | Turns the camera. |
 | `wait` | `ticks` | Waits. |
