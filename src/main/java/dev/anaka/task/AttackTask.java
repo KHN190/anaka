@@ -19,7 +19,6 @@ public final class AttackTask extends Task {
     private int hits;
     private int ticks;
     private boolean clearing;          // keepoff: out past the blast after a hit, until it stops swelling
-    private int replanCooldown;
 
     public AttackTask(int entityId) {
         this(entityId, false);
@@ -94,8 +93,7 @@ public final class AttackTask extends Task {
             if (swelling) clearing = true;
             if (clearing && dist >= KEEP_OFF && !swelling) clearing = false;
             if (clearing) {
-                if (child != null && !child.isFinished()) child.cancel("keep off");
-                child = null;
+                endChase("keep off");
                 Agent.lookAt(p, aim, 45f);
                 if (safeStep(c, p, target, 0)) {
                     a.input.back = true;
@@ -109,8 +107,7 @@ public final class AttackTask extends Task {
         }
         // Footwork while the swing refills: never forward into its reach before the hit is ready.
         if (footwork != null && !"keepoff".equals(footwork) && cooldown < READY && dist <= reach + BACK_OFF) {
-            if (child != null && !child.isFinished()) child.cancel("footwork");
-            child = null;
+            endChase("footwork");
             Agent.lookAt(p, aim, 45f);
             if (footwork.equals("back")) {
                 if (dist < reach + 0.5 && safeStep(c, p, target, 0)) a.input.back = true;
@@ -127,23 +124,16 @@ public final class AttackTask extends Task {
             if (straightLine(c, p, target)) {
                 // Close, level and open: run at it like a player would, facing it the whole way. A* would detour
                 // through cell centres and arrive after the target has moved.
-                if (child != null && !child.isFinished()) child.cancel("straight line");
-                child = null;
+                endChase("straight line");
                 Agent.lookAt(p, aim, 25f);
                 a.input.forward = true;
                 a.input.sprint = true;
                 return;
             }
-            if (child == null || child.isFinished() || --replanCooldown <= 0) {
-                if (child != null && !child.isFinished()) child.cancel("target moved");
-                child = GotoTask.near(target.getBlockPos(), 2.0, true, true).noCentering();
-                replanCooldown = 20;
-            }
-            runChild(c, a);
+            chase(c, a, target, 2.0, true, false);
             return;
         }
-        if (child != null && !child.isFinished()) child.cancel("in reach");
-        child = null;
+        endChase("in reach");
         boolean aimed = Agent.lookAt(p, aim, 45f);
         if (aimed && cooldown >= 0.95f) {
             if (p.isUsingItem()) c.interactionManager.stopUsingItem(p);      // lower the shield to swing

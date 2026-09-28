@@ -17,7 +17,6 @@ import net.minecraft.util.math.Vec3d;
 public final class InteractEntityTask extends Task {
     private final int entityId;
     private final String itemId;
-    private int replanCooldown;
     private int settle = -1;
 
     public InteractEntityTask(int entityId, String itemId) {
@@ -52,17 +51,11 @@ public final class InteractEntityTask extends Task {
         Vec3d aim = new Vec3d(target.getX(), target.getY() + target.getHeight() * 0.5, target.getZ());
         double reach = WorldUtil.entityReach(p);
         if (p.getEyePos().squaredDistanceTo(aim) > reach * reach) {
-            if (child == null || child.isFinished() || --replanCooldown <= 0) {
-                if (child != null && !child.isFinished()) child.cancel("target moved");
-                child = GotoTask.near(target.getBlockPos(), 1.8, true, false);
-                replanCooldown = 20;
-            }
-            runChild(c, a);
+            chase(c, a, target, 1.8, false, true);
             Agent.lookAt(p, aim, 25f);
             return;
         }
-        if (child != null && !child.isFinished()) child.cancel("in reach");
-        child = null;
+        endChase("in reach");
         if (!Agent.lookAt(p, aim, 45f)) return;
         ActionResult r = c.interactionManager.interactEntity(p, target, Hand.MAIN_HAND);
         p.swingHand(Hand.MAIN_HAND);

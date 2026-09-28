@@ -63,6 +63,32 @@ public abstract class Task {
         }
     }
 
+    /** Ticks between a chase's replans: the target moves, the walk to where it was goes stale. */
+    static final int CHASE_REPLAN_TICKS = 20;
+    private int chaseCooldown;
+
+    /**
+     * One tick of walking to within {@code range} of a moving entity, as this task's child: the walk is replanned
+     * when it ended or every CHASE_REPLAN_TICKS. The one chase (attack and interact both call it); {@code centre}
+     * false arrives without settling into the cell's centre.
+     */
+    protected void chase(MinecraftClient c, Agent a, net.minecraft.entity.Entity target, double range, boolean sprint,
+                         boolean centre) {
+        if (child == null || child.isFinished() || --chaseCooldown <= 0) {
+            if (child != null && !child.isFinished()) child.cancel("target moved");
+            GotoTask walk = GotoTask.near(target.getBlockPos(), range, true, sprint);
+            child = centre ? walk : walk.noCentering();
+            chaseCooldown = CHASE_REPLAN_TICKS;
+        }
+        runChild(c, a);
+    }
+
+    /** The chase (or any child walk) given up: cancelled with `why`. */
+    protected void endChase(String why) {
+        if (child != null && !child.isFinished()) child.cancel(why);
+        child = null;
+    }
+
     /** Runs the child task one tick; returns true when it has finished. */
     protected boolean runChild(MinecraftClient c, Agent a) {
         child.run(c, a);
