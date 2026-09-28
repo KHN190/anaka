@@ -26,13 +26,7 @@ public abstract class Task {
     private volatile String message = "";
     private boolean started;
     private int ticks;
-    /** The world's tick when the task started and when it finished (-1: not yet): where a chain's time goes. */
-    private long startTick = -1, endTick = -1;
 
-    private static long worldTick() {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        return mc != null && mc.world != null ? mc.world.getTime() : -1;
-    }
 
     protected Task(String type) {
         this.type = type;
@@ -59,7 +53,6 @@ public abstract class Task {
         try {
             if (!started) {
                 started = true;
-                startTick = worldTick();
                 start(c, a);
             }
             if (!isFinished()) tick(c, a);
@@ -102,7 +95,6 @@ public abstract class Task {
 
     private void finish(Status s, String msg) {
         if (isFinished()) return;
-        endTick = worldTick();
         status = s;
         message = msg;
         if (child != null && !child.isFinished()) child.cancel("parent finished");
@@ -117,8 +109,6 @@ public abstract class Task {
         o.addProperty("status", status.name().toLowerCase());
         o.addProperty("message", message);
         o.addProperty("seconds", ticks / 20.0);
-        o.addProperty("startTick", startTick);
-        o.addProperty("endTick", endTick);
         o.addProperty("doing", describe());
         o.add("result", result);
         return o;
