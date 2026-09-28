@@ -94,7 +94,10 @@ public final class MineTask extends Task {
         }
 
         BlockState s = c.world.getBlockState(pos);
-        if (s.isAir() || !WorldUtil.id(s.getBlock()).equals(blockId)) {
+        // broken = the cell no longer holds a block: air or something replaceable (water flowing in, grass growing
+        // back). A different id is not a break: grass turning to dirt under random ticks, or under a block placed
+        // above it, faked a successful mine (the farm's centre stayed solid and the water went on it).
+        if (s.isAir() || s.isReplaceable()) {
             broken = true;
             breaking = false;
             if (collect) child = new CollectTask(pos, 5, 6, only);
