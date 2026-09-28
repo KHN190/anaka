@@ -131,6 +131,20 @@ public final class Reflex {
         return v * v;
     }
 
+    /**
+     * Pure: the move keys {forward, back, left, right} that walk the same world direction after the look turns from
+     * {@code fromYaw} to {@code toYaw} (degrees): a reflex's look must not steer the task's feet.
+     */
+    public static boolean[] remap(boolean f, boolean b, boolean l, boolean r, float fromYaw, float toYaw) {
+        double fw = (f ? 1 : 0) - (b ? 1 : 0), side = (l ? 1 : 0) - (r ? 1 : 0);
+        if (fw == 0 && side == 0) return new boolean[]{false, false, false, false};
+        double a = Math.toRadians(fromYaw), a2 = Math.toRadians(toYaw);
+        double wx = side * Math.cos(a) - fw * Math.sin(a), wz = fw * Math.cos(a) + side * Math.sin(a);
+        double f2 = -wx * Math.sin(a2) + wz * Math.cos(a2), s2 = wx * Math.cos(a2) + wz * Math.sin(a2);
+        double n = Math.hypot(f2, s2), cut = Math.sin(Math.toRadians(22.5)) * n;        // 8 ways
+        return new boolean[]{f2 > cut, f2 < -cut, s2 > cut, s2 < -cut};
+    }
+
     /** Degrees between two contacts' directions from the body (horizontal). */
     static double angle(Contact a, Contact b) {
         double na = Math.hypot(a.dx(), a.dz()), nb = Math.hypot(b.dx(), b.dz());

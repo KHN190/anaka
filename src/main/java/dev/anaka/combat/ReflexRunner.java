@@ -78,19 +78,35 @@ public final class ReflexRunner {
                     holdY = act.y();
                     holdZ = act.z();
                 }
-                Agent.lookAt(p, new Vec3d(act.x(), act.y(), act.z()), 180f);
+                look(p, a, new Vec3d(act.x(), act.y(), act.z()));
                 a.holdUse = true;
                 if (!p.isUsingItem()) c.interactionManager.interactItem(p, Hand.OFF_HAND);
             }
             case "deflect", "attack" -> {
                 Entity target = c.world.getEntityById(act.id());
                 if (target == null) return;
+                // the swing names its target: the task's look is put back in the same tick, its feet never turned
+                float yaw = p.getYaw(), pitch = p.getPitch();
                 Agent.lookAt(p, new Vec3d(act.x(), act.y(), act.z()), 180f);
                 if (p.isUsingItem()) c.interactionManager.stopUsingItem(p);      // a swing lowers the shield
                 c.interactionManager.attackEntity(p, target);
                 p.swingHand(Hand.MAIN_HAND);
+                p.setYaw(yaw);
+                p.setPitch(pitch);
             }
             default -> { }
         }
+    }
+
+    /** Face `at` at once; the task's move keys re-mapped so its feet keep their world direction (a travel runs on). */
+    private static void look(ClientPlayerEntity p, Agent a, Vec3d at) {
+        float before = p.getYaw();
+        Agent.lookAt(p, at, 180f);
+        boolean[] k = Reflex.remap(a.input.forward, a.input.back, a.input.left, a.input.right, before, p.getYaw());
+        a.input.forward = k[0];
+        a.input.back = k[1];
+        a.input.left = k[2];
+        a.input.right = k[3];
+        if (!k[0]) a.input.sprint = false;
     }
 }

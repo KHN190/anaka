@@ -89,4 +89,23 @@ class ReflexTest {
         Reflex.Act a = Reflex.decide(List.of(arrow(1, 4, 0, -8)), ALL, READY);
         assertEquals(4 + Reflex.AFTER, a.hold());
     }
+
+    @Test
+    void theFeetKeepTheirWay() {
+        // (forward, back, left, right, look before, look after) → the keys that walk the same way
+        Object[][] rows = {
+            {new boolean[]{true, false, false, false}, 0f, 0f, new boolean[]{true, false, false, false}},
+            {new boolean[]{true, false, false, false}, 0f, 180f, new boolean[]{false, true, false, false}},
+            // yaw 0 faces +z (south); turned to 90 (west), south is on the left
+            {new boolean[]{true, false, false, false}, 0f, 90f, new boolean[]{false, false, true, false}},
+            {new boolean[]{true, false, false, false}, 0f, -90f, new boolean[]{false, false, false, true}},
+            {new boolean[]{false, false, false, false}, 0f, 90f, new boolean[]{false, false, false, false}},
+        };
+        for (Object[] r : rows) {
+            boolean[] k = (boolean[]) r[0];
+            boolean[] got = Reflex.remap(k[0], k[1], k[2], k[3], (float) r[1], (float) r[2]);
+            assertEquals(java.util.Arrays.toString((boolean[]) r[3]), java.util.Arrays.toString(got),
+                "must fail when the look steers the feet: " + r[1] + "→" + r[2]);
+        }
+    }
 }
