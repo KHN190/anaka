@@ -212,6 +212,13 @@ final class HttpApi {
             dev.anaka.util.AutoEat.configure(req.body.has("below") ? req.body.get("below").getAsInt() : 0, foods);
             return ok();
         }));
+        // The combat reflex's policy (combat.Reflex): GET reads it, POST sets any of shield, counter, deflect, priority.
+        route("/reflex", false, req -> req.method.equals("POST")
+            ? onClient(c -> {
+                dev.anaka.combat.ReflexRunner.set(req.body);
+                return dev.anaka.combat.ReflexRunner.json();
+            })
+            : dev.anaka.combat.ReflexRunner.json());
         route("/control", true, req -> onClient(c -> {
             Agent.get().setPaused(c, req.body.get("paused").getAsBoolean());
             return ok();

@@ -12,7 +12,6 @@ import net.minecraft.util.math.Vec3d;
 /** Chases an entity and hits it whenever the attack cooldown is full. */
 public final class AttackTask extends Task {
     private final int entityId;
-    private final boolean shield;
     /** Between swings: "back" steps out of the target's reach and in again as the cooldown fills (hit-and-back),
      * "strafe" sidesteps across its line of fire (a ranged target); null stands and swings. */
     private final String footwork;
@@ -21,21 +20,16 @@ public final class AttackTask extends Task {
     private boolean clearing;          // keepoff: out past the blast after a hit, until it stops swelling
 
     public AttackTask(int entityId) {
-        this(entityId, false);
+        this(entityId, null);
     }
 
-    /** {@code shield}: raise the offhand shield between swings (while the attack cooldown refills), lower it to hit. */
-    public AttackTask(int entityId, boolean shield) {
-        this(entityId, shield, null);
-    }
-
-    public AttackTask(int entityId, boolean shield, String footwork) {
+    /** The shield is the combat reflex's (combat.Reflex: raised for a predicted hit, facing it), not this task's. */
+    public AttackTask(int entityId, String footwork) {
         super("attack");
         if (footwork != null && !footwork.equals("back") && !footwork.equals("strafe") && !footwork.equals("keepoff")) {
             throw new IllegalArgumentException("\"footwork\" is back, strafe or keepoff");
         }
         this.entityId = entityId;
-        this.shield = shield;
         this.footwork = footwork;
         this.timeoutTicks = 20 * 60;
     }
@@ -141,9 +135,6 @@ public final class AttackTask extends Task {
             p.swingHand(Hand.MAIN_HAND);
             hits++;
             if ("keepoff".equals(footwork)) clearing = true;
-        } else if (shield && dev.anaka.util.InvUtil.id(p.getOffHandStack()).equals("minecraft:shield")) {
-            if (!p.isUsingItem()) c.interactionManager.interactItem(p, Hand.OFF_HAND);
-            a.holdUse = true;                                                  // up while the cooldown refills
         }
     }
 

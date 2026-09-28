@@ -44,7 +44,7 @@ public final class TaskFactory {
                 yield bool(o, "voidBridge", true) ? t : t.noVoidBridge();
             }
             case "use" -> new UseBlockTask(pos(o)).avoiding(avoidSet(o));
-            case "attack" -> new AttackTask(integer(o, "entity"), bool(o, "shield", false), str(o, "footwork", null))
+            case "attack" -> new AttackTask(integer(o, "entity"), str(o, "footwork", null))
                 .holding(str(o, "item", null));
             case "bed_bomb" -> new BedBombTask(pos(o), itemId(o));
             case "interact" -> new InteractEntityTask(integer(o, "entity"), o.has("item") ? itemId(o) : null);
