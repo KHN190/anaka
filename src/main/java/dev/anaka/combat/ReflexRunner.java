@@ -106,8 +106,14 @@ public final class ReflexRunner {
         for (Threats.Seen s : seen) contacts.add(s.contact());
         boolean eating = p.isUsingItem() && p.getActiveHand() == Hand.MAIN_HAND;
         boolean shield = InvUtil.id(p.getOffHandStack()).equals("minecraft:shield") && !eating;
+        Vec3d v = p.getVelocity();
         Reflex.Act act = Reflex.decide(contacts, pol, new Reflex.Body(shield, p.getAttackCooldownProgress(0.5f),
-            holdUntil - tick, holdX, holdY, holdZ));
+            holdUntil - tick, holdX, holdY, holdZ, Math.hypot(v.x, v.z), p.isOnGround()));
+        if (act.still() && !p.isTouchingWater() && !p.isInLava()) {
+            // a deflect planned (never over the water/lava nets): the task's movement paused this tick (its keys come back next tick, pressed anew)
+            a.input.forward = a.input.back = a.input.left = a.input.right = false;
+            a.input.sprint = a.input.jump = false;
+        }
         if (!"none".equals(act.what())) {
             last = new Last(act.what(), act.id(), c.world.getTime());
             synchronized (RECENT) {

@@ -93,6 +93,36 @@ class ReflexTest {
     }
 
     @Test
+    void aDeflectOnlyFromAStillBody() {
+        double walk = 0.216;                                      // a walking body's speed, blocks/tick
+        int stop = Reflex.stopTicks(walk, true);
+        Reflex.Body walking = new Reflex.Body(true, 1f, 0, 0, 0, 0, walk, true);
+        Reflex.Body airborne = new Reflex.Body(true, 1f, 0, 0, 0, 0, 0, false);
+        Reflex.Body still = READY;
+        Object[][] rows = {
+            // (situation, contacts, body) -> act, move keys released
+            {"moving, a fireball inside the window it can stop in: keys released, no swing yet",
+                List.of(fireball(5, Reflex.DEFLECT_TICKS + stop, false)), walking, "none:-1", true},
+            {"then still, the fireball in its last ticks: deflect, keys still released",
+                List.of(fireball(5, 2, true)), still, "deflect:5", true},
+            {"must fail: moving, the fireball already in its last ticks: shield, never a swing",
+                List.of(fireball(5, 2, true)), walking, "shield:5", true},
+            {"airborne: shield, no swing, keys kept (it cannot stop)", List.of(fireball(5, 2, true)), airborne,
+                "shield:5", false},
+            {"must fail: a fireball beyond the window: the task keeps its keys",
+                List.of(fireball(5, Reflex.DEFLECT_TICKS + stop + 1, false)), walking, "none:-1", false},
+        };
+        for (Object[] r : rows) {
+            @SuppressWarnings("unchecked") List<Reflex.Contact> cs = (List<Reflex.Contact>) r[1];
+            Reflex.Act a = Reflex.decide(cs, ALL, (Reflex.Body) r[2]);
+            assertEquals(r[3], a.what() + ":" + a.id(), (String) r[0]);
+            assertEquals(r[4], a.still(), r[0] + ": keys");
+        }
+        assertEquals(0, Reflex.stopTicks(Reflex.STILL, true), "at STILL: still");
+        assertEquals(Reflex.NEVER, Reflex.stopTicks(0, false), "airborne: never");
+    }
+
+    @Test
     void aNewShieldHoldsPastTheImpact() {
         Reflex.Act a = Reflex.decide(List.of(arrow(1, 4, 0, -8)), ALL, READY);
         assertEquals(4 + Reflex.AFTER, a.hold());

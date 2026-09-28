@@ -9,7 +9,9 @@ import java.util.List;
  * {@link Threats} read; the client side is in {@link ReflexRunner}. Policy is Python's (POST /reflex), off by default.
  * <p>
  * Order ({@link #decide}): deflect &gt; shield an exact hit due &gt; swing at full cooldown &gt; shield a melee mob
- * between swings. Only look and the use/attack keys: the task keeps the feet.
+ * between swings. Only look and the use/attack keys: the task keeps the feet — except a deflect, swung only from a
+ * body standing still: its move keys are released from when it can still stop in time until the swing (a deflect
+ * swung while walking failed); a body that cannot stop in time (fast, airborne) shields instead.
  * <p>
  * Timing. A raised shield blocks only after {@link #SHIELD_DELAY} ticks of use (vanilla shield: blocks_attacks
  * block_delay_seconds 0.25 = 5 ticks), and the use reaches the server one tick after the client presses it. So the
@@ -29,6 +31,12 @@ public final class Reflex {
     /** A counter-attack while a hit is coming stays inside the shield's arc: at most this far off the soonest hit. */
     public static final double ARC_DEG = 60.0;
     public static final float READY = 0.95f;          // attack cooldown full (the game's own swing is at 1.0)
+    /** A deflect only from a body standing still: vanilla zeroes a velocity component under this (LivingEntity). */
+    public static final double STILL = 0.003;
+    /** Horizontal speed kept a tick on the ground with no keys: block slipperiness 0.6 × air resistance 0.91. */
+    public static final double GROUND_DRAG = 0.6 * 0.91;
+    /** Never: the body cannot stop (airborne: no ground to stop on). */
+    public static final int NEVER = Integer.MAX_VALUE;
 
     /** Python's policy: what the reflex may do. Off: nothing at all. */
     public record Policy(boolean shield, boolean counter, boolean deflect, boolean creeperFirst) {
@@ -47,13 +55,47 @@ public final class Reflex {
                           boolean inReach, boolean hostile, boolean deflectable, boolean creeper, float health,
                           double dist) {}
 
-    /** The body now: a shield in the offhand and free to raise, the attack cooldown 0..1, a hold still running. */
-    public record Body(boolean canShield, float cooldown, int holdLeft, double holdX, double holdY, double holdZ) {}
+    /** The body now: a shield in the offhand and free to raise, the attack cooldown 0..1, a hold still running, its
+     * horizontal speed (blocks/tick) and whether it stands on the ground. */
+    public record Body(boolean canShield, float cooldown, int holdLeft, double holdX, double holdY, double holdZ,
+                       double speed, boolean onGround) {
+        /** A body standing still. */
+        public Body(boolean canShield, float cooldown, int holdLeft, double holdX, double holdY, double holdZ) {
+            this(canShield, cooldown, holdLeft, holdX, holdY, holdZ, 0, true);
+        }
+    }
 
     /** What to do this tick: {@code what} none | shield | deflect | attack; the entity, the point to face, and for a
      * new shield window how long it holds. */
-    public record Act(String what, int id, double x, double y, double z, int hold) {
+    public record Act(String what, int id, double x, double y, double z, int hold, boolean still) {
         static final Act NONE = new Act("none", -1, 0, 0, 0, 0);
+
+        Act(String what, int id, double x, double y, double z, int hold) {
+            this(what, id, x, y, z, hold, false);
+        }
+
+        /** The same act, with the move keys released this tick (a deflect planned: the body stands still). */
+        Act still(boolean on) {
+            return on == still ? this : new Act(what, id, x, y, z, hold, on);
+        }
+    }
+
+    /** Pure: ticks until the body is still with its move keys released; 0 already, NEVER airborne. */
+    public static int stopTicks(double speed, boolean onGround) {
+        if (!onGround) return NEVER;
+        if (speed <= STILL) return 0;
+        return (int) Math.ceil(Math.log(STILL / speed) / Math.log(GROUND_DRAG));
+    }
+
+    /** Pure: a deflect is planned — a fireball coming whose deflect window the body can be still for. */
+    static boolean brace(List<Contact> contacts, Policy pol, Body body) {
+        if (!pol.deflect()) return false;
+        int stop = stopTicks(body.speed(), body.onGround());
+        if (stop == NEVER) return false;
+        for (Contact c : contacts) {
+            if (c.deflectable() && c.tti() >= 0 && c.tti() <= DEFLECT_TICKS + stop) return true;
+        }
+        return false;
     }
 
     /** A hit whose time is known to the tick (a projectile, a lit fuse): a melee mob's cooldown is not synced. */
@@ -68,9 +110,14 @@ public final class Reflex {
      */
     public static Act decide(List<Contact> contacts, Policy pol, Body body) {
         if (pol.off()) return Act.NONE;
+        return choose(contacts, pol, body).still(brace(contacts, pol, body));
+    }
+
+    /** Pure: the act itself; a deflect only from a still body (else the shield takes the fireball). */
+    static Act choose(List<Contact> contacts, Policy pol, Body body) {
         Contact soonest = contacts.stream().filter(c -> c.tti() >= 0 && exact(c))
             .min(Comparator.comparingInt(Contact::tti)).orElse(null);
-        if (pol.deflect()) {
+        if (pol.deflect() && stopTicks(body.speed(), body.onGround()) == 0) {
             for (Contact c : contacts) {
                 if (c.deflectable() && c.inReach() && c.tti() >= 0 && c.tti() <= DEFLECT_TICKS) {
                     return new Act("deflect", c.id(), c.x(), c.y(), c.z(), 0);
