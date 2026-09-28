@@ -73,5 +73,8 @@ public final class InputTask extends Task {
         a.input.jump = keys.contains("jump");
         a.input.sneak = keys.contains("sneak");
         a.input.sprint = keys.contains("sprint");
+        // "use": the use key held — with a sword in hand (no use of its own) it raises the offhand shield; the
+        // client's fight asked for a shield up with no task that could say so (a use_item names a hand item)
+        a.holdUse = keys.contains("use");
     }
 }
