@@ -52,6 +52,8 @@ final class WorldInfo {
         o.addProperty("blockZ", feet.getZ());
         o.addProperty("yaw", p.getYaw());
         o.addProperty("pitch", p.getPitch());
+        // the shield raised and blocking now (the reflex's, combat.Reflex): the evidence a block happened
+        o.addProperty("blocking", p.isBlocking());
         o.addProperty("dimension", w.getRegistryKey().getValue().toString());
         o.addProperty("blockLight", w.getLightLevel(LightType.BLOCK, feet));
         o.addProperty("skyLight", w.getLightLevel(LightType.SKY, feet));
