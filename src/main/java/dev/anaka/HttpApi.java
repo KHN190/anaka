@@ -290,7 +290,9 @@ final class HttpApi {
     private void route(String path, boolean needsWorld, Handler handler) {
         server.createContext(path, exchange -> {
             lastRequestMs = System.currentTimeMillis();
-            try (exchange) {
+            // Closed in finally, never by try-with-resources: that closed the exchange BEFORE a catch ran, so the
+            // error reply went to a closed stream and the socket shut with no answer (Python: RemoteDisconnected).
+            try {
                 if (exchange.getRequestHeaders().containsKey("Origin")) {
                     send(exchange, 403, error("browser requests are not allowed"));
                     return;
@@ -320,18 +322,20 @@ final class HttpApi {
                 }
                 JsonObject out = handler.handle(new Request(method, parseQuery(exchange.getRequestURI().getRawQuery()), body));
                 send(exchange, 200, out);
-            } catch (IllegalArgumentException | IllegalStateException e) {
-                sendQuietly(exchange, 400, error(e.getMessage()));
+            } catch (IllegalArgumentException | IllegalStateException | com.google.gson.JsonParseException e) {
+                sendQuietly(exchange, 400, error(e.getMessage()));     // the request's own mistake: named, a 400
             } catch (Throwable e) {
                 // Every failure is answered and logged: an Error escaping here (or a second send after a failed
                 // one) closed the connection with no reply and no log line — Python saw only "RemoteDisconnected".
                 Throwable cause = e instanceof ExecutionException && e.getCause() != null ? e.getCause() : e;
-                if (cause instanceof IllegalArgumentException) {
+                if (cause instanceof IllegalArgumentException || cause instanceof IllegalStateException) {
                     sendQuietly(exchange, 400, error(cause.getMessage()));
                 } else {
                     Anaka.LOG.error("Anaka request {} failed", path, cause);
                     sendQuietly(exchange, 500, error(String.valueOf(cause)));
                 }
+            } finally {
+                exchange.close();            // after the reply, whichever it was
             }
         });
     }
