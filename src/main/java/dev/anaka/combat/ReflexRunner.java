@@ -9,7 +9,9 @@ import net.minecraft.entity.Entity;
 import net.minecraft.util.Hand;
 import net.minecraft.util.math.Vec3d;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 
 /** The reflex on the client thread: reads {@link Threats}, asks {@link Reflex#decide}, carries it out. Runs last in the
@@ -56,7 +58,30 @@ public final class ReflexRunner {
             j.addProperty("tick", l.tick());
             o.add("last", j);
         }
+        com.google.gson.JsonArray r = new com.google.gson.JsonArray();
+        synchronized (RECENT) {
+            for (Last a : RECENT) {               // each change of act, oldest first: what the reflex did in a window
+                JsonObject j = new JsonObject();
+                j.addProperty("what", a.what());
+                j.addProperty("id", a.id());
+                j.addProperty("tick", a.tick());
+                r.add(j);
+            }
+        }
+        o.add("recent", r);
         return o;
+    }
+
+    /** The recent acts kept for GET /reflex. */
+    static final int KEEP = 32;
+    private static final Deque<Last> RECENT = new ArrayDeque<>();
+
+    /** Pure on the ring: an act noted when it differs from the last noted (a held shield is one entry), at most keep. */
+    static void note(Deque<Last> ring, Last a, int keep) {
+        Last prev = ring.peekLast();
+        if (prev != null && prev.what().equals(a.what()) && prev.id() == a.id()) return;
+        ring.addLast(a);
+        while (ring.size() > keep) ring.removeFirst();
     }
 
     /** The last act the reflex took (never "none"), read by GET /reflex. */
@@ -83,7 +108,12 @@ public final class ReflexRunner {
         boolean shield = InvUtil.id(p.getOffHandStack()).equals("minecraft:shield") && !eating;
         Reflex.Act act = Reflex.decide(contacts, pol, new Reflex.Body(shield, p.getAttackCooldownProgress(0.5f),
             holdUntil - tick, holdX, holdY, holdZ));
-        if (!"none".equals(act.what())) last = new Last(act.what(), act.id(), c.world.getTime());
+        if (!"none".equals(act.what())) {
+            last = new Last(act.what(), act.id(), c.world.getTime());
+            synchronized (RECENT) {
+                note(RECENT, last, KEEP);
+            }
+        }
         switch (act.what()) {
             case "shield" -> {
                 if (act.hold() > 0 && tick + act.hold() > holdUntil) {
