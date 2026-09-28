@@ -300,9 +300,22 @@ final class WorldInfo {
         List<Entity> list = new ArrayList<>(c.world.getOtherEntities(p, p.getBoundingBox().expand(Math.min(radius, 128))));
         list.sort((a, b) -> Double.compare(a.squaredDistanceTo(p), b.squaredDistanceTo(p)));
         JsonArray arr = new JsonArray();
+        // the hits coming at the body (combat.Threats: the reflex's own reading), by entity id
+        java.util.Map<Integer, dev.anaka.combat.Impact.Hit> hits = new java.util.HashMap<>();
+        for (var s : dev.anaka.combat.Threats.read(c)) if (s.hit() != null) hits.put(s.entity().getId(), s.hit());
         for (Entity e : list) {
             JsonObject o = new JsonObject();
             o.addProperty("id", e.getId());
+            dev.anaka.combat.Impact.Hit hit = hits.get(e.getId());
+            if (hit != null) {
+                // ticks until its hit lands on the body, and where (a projectile's entry point; a mob: the body)
+                o.addProperty("tti_ticks", hit.ticks());
+                JsonArray at = new JsonArray();
+                at.add(hit.x());
+                at.add(hit.y());
+                at.add(hit.z());
+                o.add("impact", at);
+            }
             o.addProperty("type", Registries.ENTITY_TYPE.getId(e.getType()).toString());
             o.addProperty("x", e.getX());
             o.addProperty("y", e.getY());
