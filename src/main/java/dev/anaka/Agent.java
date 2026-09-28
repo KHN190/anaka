@@ -205,6 +205,8 @@ public final class Agent {
         dev.anaka.util.WaterClutch.tick(client, p);
         // Eat on the way: only while the task is just moving (never mid-dig, mid-swing, mid-place).
         if (dev.anaka.util.AutoEat.tick(client, p, current != null && current.walking())) holdUse = true;
+        // A walk never stares an enderman in the eyes (the pitch moves, the yaw and so the feet stay).
+        if (current != null && current.walking()) dev.anaka.combat.Gaze.avoid(client, p);
         // Last: the combat reflex (Python's policy, off by default) — a due hit's shield over what the task pressed.
         dev.anaka.combat.ReflexRunner.tick(client, this);
 
