@@ -73,6 +73,23 @@ public final class UseItemTask extends Task {
             Vec3d end = eye.add(p.getRotationVec(1f).multiply(p.getBlockInteractionRange()));
             BlockHitResult hit = c.world.raycast(new RaycastContext(eye, end, RaycastContext.ShapeType.OUTLINE,
                 RaycastContext.FluidHandling.NONE, p));
+            // what the click saw: the eye, the look, the reach, where the ray ended (why a click missed is provable)
+            result.addProperty("eyeX", eye.x);
+            result.addProperty("eyeY", eye.y);
+            result.addProperty("eyeZ", eye.z);
+            result.addProperty("yaw", p.getYaw());
+            result.addProperty("pitch", p.getPitch());
+            result.addProperty("reach", p.getBlockInteractionRange());
+            result.addProperty("sneaking", p.isSneaking());
+            if (aim != null) {
+                result.addProperty("aimX", aim.x);
+                result.addProperty("aimY", aim.y);
+                result.addProperty("aimZ", aim.z);
+                result.addProperty("aimDist", eye.distanceTo(aim));
+            }
+            result.addProperty("rayEndX", hit.getPos().x);
+            result.addProperty("rayEndY", hit.getPos().y);
+            result.addProperty("rayEndZ", hit.getPos().z);
             if (hit.getType() != HitResult.Type.BLOCK) {
                 fail("no block under the crosshair");
                 return;
