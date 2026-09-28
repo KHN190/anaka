@@ -14,7 +14,7 @@ import java.util.Set;
  * first. The result carries the body's end state: onGround, inWater.
  */
 public final class InputTask extends Task {
-    public static final Set<String> KEYS = Set.of("forward", "back", "left", "right", "jump", "sneak", "sprint");
+    public static final Set<String> KEYS = Set.of("forward", "back", "left", "right", "jump", "sneak", "sprint", "use");
 
     private final Set<String> keys;
     private final float yaw;
