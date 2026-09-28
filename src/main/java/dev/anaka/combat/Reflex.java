@@ -8,8 +8,8 @@ import java.util.List;
  * The combat reflex: one decision a tick, a fallback under Python's positioning. Pure ({@link #decide}) over what
  * {@link Threats} read; the client side is in {@link ReflexRunner}. Policy is Python's (POST /reflex), off by default.
  * <p>
- * Order: deflect a fireball in its last ticks &gt; shield the soonest hit &gt; counter-attack. Shield before attack:
- * a swing lowers the shield (vanilla), so none is taken while a hit is due.
+ * Order ({@link #decide}): deflect &gt; shield an exact hit due &gt; swing at full cooldown &gt; shield a melee mob
+ * between swings. Only look and the use/attack keys: the task keeps the feet.
  * <p>
  * Timing. A raised shield blocks only after {@link #SHIELD_DELAY} ticks of use (vanilla shield: blocks_attacks
  * block_delay_seconds 0.25 = 5 ticks), and the use reaches the server one tick after the client presses it. So the
@@ -56,9 +56,19 @@ public final class Reflex {
         static final Act NONE = new Act("none", -1, 0, 0, 0, 0);
     }
 
+    /** A hit whose time is known to the tick (a projectile, a lit fuse): a melee mob's cooldown is not synced. */
+    static boolean exact(Contact c) {
+        return !"melee".equals(c.kind());
+    }
+
+    /**
+     * Deflect a fireball in its last ticks &gt; shield an exact hit within LEAD (and its hold) &gt; swing at full
+     * cooldown at a target in reach &gt; shield a melee mob in its range while the cooldown refills. The melee rhythm:
+     * the swing is instant, a raised shield needs SHIELD_DELAY ticks and a swing drops it.
+     */
     public static Act decide(List<Contact> contacts, Policy pol, Body body) {
         if (pol.off()) return Act.NONE;
-        Contact soonest = contacts.stream().filter(c -> c.tti() >= 0)
+        Contact soonest = contacts.stream().filter(c -> c.tti() >= 0 && exact(c))
             .min(Comparator.comparingInt(Contact::tti)).orElse(null);
         if (pol.deflect()) {
             for (Contact c : contacts) {
@@ -86,6 +96,12 @@ public final class Reflex {
                 .thenComparingDouble(Contact::health).thenComparingDouble(Contact::dist);
             Contact t = targets.stream().min(order).orElse(null);
             if (t != null) return new Act("attack", t.id(), t.x(), t.y(), t.z(), 0);
+        }
+        if (pol.shield() && body.canShield()) {
+            // between swings: up against the nearest melee mob in its range (no hold: the next full cooldown swings)
+            Contact m = contacts.stream().filter(c -> !exact(c) && c.tti() == 0)
+                .min(Comparator.comparingDouble(Contact::dist)).orElse(null);
+            if (m != null) return new Act("shield", m.id(), m.x(), m.y(), m.z(), 0);
         }
         return Act.NONE;
     }
