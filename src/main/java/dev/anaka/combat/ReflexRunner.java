@@ -48,8 +48,21 @@ public final class ReflexRunner {
         o.addProperty("priority", p.creeperFirst() ? "creeper" : "fastest");
         o.addProperty("shieldDelay", Reflex.SHIELD_DELAY);
         o.addProperty("lead", Reflex.LEAD);
+        Last l = last;
+        if (l != null) {                     // the last act taken: what, on whom, the world tick (a bench trace)
+            JsonObject j = new JsonObject();
+            j.addProperty("what", l.what());
+            j.addProperty("id", l.id());
+            j.addProperty("tick", l.tick());
+            o.add("last", j);
+        }
         return o;
     }
+
+    /** The last act the reflex took (never "none"), read by GET /reflex. */
+    record Last(String what, int id, long tick) {}
+
+    private static volatile Last last;
 
     private static boolean flag(JsonObject o, String key, boolean def) {
         if (!o.has(key) || o.get(key).isJsonNull()) return def;
@@ -70,6 +83,7 @@ public final class ReflexRunner {
         boolean shield = InvUtil.id(p.getOffHandStack()).equals("minecraft:shield") && !eating;
         Reflex.Act act = Reflex.decide(contacts, pol, new Reflex.Body(shield, p.getAttackCooldownProgress(0.5f),
             holdUntil - tick, holdX, holdY, holdZ));
+        if (!"none".equals(act.what())) last = new Last(act.what(), act.id(), c.world.getTime());
         switch (act.what()) {
             case "shield" -> {
                 if (act.hold() > 0 && tick + act.hold() > holdUntil) {
