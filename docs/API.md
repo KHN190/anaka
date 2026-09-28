@@ -78,7 +78,6 @@ position. If a tool breaks mid-block, mining switches to the next best tool auto
 | `POST /takeover`, `POST /release` | Take or return control without a task. |
 | `POST /resume` | Close the pause menu. |
 | `POST /respawn` | Respawn after death. |
-| `POST /hotbar` | `{"slot": 0-8}` |
 | `POST /click` | `{"slot": n, "button": 0, "action": "PICKUP"}` — `PICKUP`, `QUICK_MOVE`, `SWAP`, `THROW`, `PICKUP_ALL`, `QUICK_CRAFT`. |
 | `POST /close` | Close the open container. |
 | `POST /chat` | `{"message": "hello"}`; messages starting with `/` are sent as commands. |
