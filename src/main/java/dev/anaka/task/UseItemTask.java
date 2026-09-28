@@ -22,6 +22,11 @@ public final class UseItemTask extends Task {
     private final float yaw;
     private final float pitch;
     private final boolean onBlock;
+
+    /** A click on a block: the chain keeps the sneak held from one such click to the next (Agent). */
+    public boolean onBlock() {
+        return onBlock;
+    }
     private final int holdTicks;
 
     private boolean used;
@@ -66,7 +71,8 @@ public final class UseItemTask extends Task {
         // Sneak while clicking a block: a bucket or hoe aimed past a chest or crafting table must use the item, not
         // open the container (a water pour once opened a cache chest instead).
         if (onBlock) a.input.sneak = true;
-        boolean aligned = aim != null ? Agent.lookAt(p, aim, 30f) : Agent.rotateTowards(p, yaw, pitch, 30f);
+        // a real turn, up to 90 degrees a tick (a ring of clicks 45 degrees apart: one tick each, not two)
+        boolean aligned = aim != null ? Agent.lookAt(p, aim, 90f) : Agent.rotateTowards(p, yaw, pitch, 90f);
         if (!aligned || !InvUtil.id(p.getMainHandStack()).equals(itemId)) return;
         if (onBlock) {
             Vec3d eye = p.getEyePos();

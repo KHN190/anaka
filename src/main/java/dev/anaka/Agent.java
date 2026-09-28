@@ -29,6 +29,10 @@ public final class Agent {
     public final AgentInput input = new AgentInput();
     /** Set by tasks each tick; applied to the use key before vanilla input handling. */
     public boolean holdUse;
+    /** The last task was a click on a block and the next is one too: keep the sneak held between them. */
+    private boolean sneakHeld;
+    /** Tasks one tick may start, one after another, when each finishes at once. */
+    private static final int SAME_TICK_TASKS = 3;
 
     private volatile boolean controlling;
     /** The player took over with the toggle key; the API refuses new work until they hand control back. */
@@ -160,20 +164,26 @@ public final class Agent {
         input.clear();
         holdUse = false;
         if (current == null) current = queue.poll();
-        if (current != null) {
+        // the sneak stays held from one click on a block to the next (a chain of them: no tick lost re-applying it);
+        // released as soon as anything else runs
+        if (current instanceof dev.anaka.task.UseItemTask u && u.onBlock() && sneakHeld) input.sneak = true;
+        else sneakHeld = false;
+        // the next queued task starts in the tick the last one finished (a few at most: instant tasks chain on)
+        for (int step = 0; current != null && step < SAME_TICK_TASKS; step++) {
             current.run(client, this);
-            if (current.isFinished()) {
-                if (current.stopOnFailure && current.status() != Task.Status.SUCCEEDED) {
-                    int chain = current.chain;
-                    String why = "step " + current.id + " of the chain failed: " + current.message();
-                    queue.removeIf(t -> {
-                        if (t.chain != chain) return false;
-                        t.cancel(why);
-                        return true;
-                    });
-                }
-                current = queue.poll();
+            if (!current.isFinished()) break;
+            sneakHeld = current instanceof dev.anaka.task.UseItemTask u && u.onBlock();
+            if (current.stopOnFailure && current.status() != Task.Status.SUCCEEDED) {
+                int chain = current.chain;
+                String why = "step " + current.id + " of the chain failed: " + current.message();
+                queue.removeIf(t -> {
+                    if (t.chain != chain) return false;
+                    t.cancel(why);
+                    return true;
+                });
             }
+            current = queue.poll();
+            if (!(current instanceof dev.anaka.task.UseItemTask u2 && u2.onBlock())) sneakHeld = false;
         }
 
         // Safety net that no task can override: while the agent drives, never let the player drown.
