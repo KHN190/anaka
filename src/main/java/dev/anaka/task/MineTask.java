@@ -157,7 +157,7 @@ public final class MineTask extends Task {
             }
             toolId = InvUtil.id(p.getMainHandStack());
         }
-        if (Agent.lookAt(p, hit.getPos(), 90f)) {         // a real turn, up to 90 degrees a tick
+        if (Agent.lookAt(p, hit.getPos(), 180f)) {        // the view set on the block at once, the break begun this tick
             c.interactionManager.updateBlockBreakingProgress(pos, hit.getSide());
             p.swingHand(Hand.MAIN_HAND);
             breaking = true;

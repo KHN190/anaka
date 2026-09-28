@@ -71,8 +71,9 @@ public final class UseItemTask extends Task {
         // Sneak while clicking a block: a bucket or hoe aimed past a chest or crafting table must use the item, not
         // open the container (a water pour once opened a cache chest instead).
         if (onBlock) a.input.sneak = true;
-        // a real turn, up to 90 degrees a tick (a ring of clicks 45 degrees apart: one tick each, not two)
-        boolean aligned = aim != null ? Agent.lookAt(p, aim, 90f) : Agent.rotateTowards(p, yaw, pitch, 90f);
+        // the view set on the aim at once and the click made the same tick (as PlaceTask sets yaw/pitch): a turn per
+        // tick cost a ring of 16 clicks seconds; LookTask keeps its turn for plain looks
+        boolean aligned = aim != null ? Agent.lookAt(p, aim, 180f) : Agent.rotateTowards(p, yaw, pitch, 180f);
         if (!aligned || !InvUtil.id(p.getMainHandStack()).equals(itemId)) return;
         if (onBlock) {
             Vec3d eye = p.getEyePos();
