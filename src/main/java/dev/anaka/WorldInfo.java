@@ -296,19 +296,43 @@ final class WorldInfo {
         return o;
     }
 
+    /** The mob states the client has synced, read directly: a lit fuse, a ghast shooting, a bow drawn, attacking. */
+    static void states(Entity e, JsonObject o) {
+        if (e instanceof net.minecraft.entity.mob.CreeperEntity cr) {
+            boolean lit = cr.getFuseSpeed() > 0 || cr.isIgnited();
+            o.addProperty("ignited", lit);
+            if (lit) o.addProperty("fuse_ticks", Math.max(0, Math.round((1f - cr.getLerpedFuseTime(0f)) * 30)));
+        }
+        if (e instanceof net.minecraft.entity.mob.GhastEntity g) o.addProperty("shooting", g.isShooting());
+        if (e instanceof LivingEntity le && dev.anaka.combat.Threats.drawing(le)) {
+            o.addProperty("drawing", true);
+            o.addProperty("pull_ticks", le.getItemUseTime());
+        }
+        if (e instanceof net.minecraft.entity.mob.PillagerEntity pg) o.addProperty("charging", pg.isCharging());
+        if (e instanceof net.minecraft.entity.mob.MobEntity m) o.addProperty("attacking", m.isAttacking());
+    }
+
     static JsonObject entities(MinecraftClient c, double radius) {
         ClientPlayerEntity p = c.player;
         // Up to 128: the dragon circles farther than 64 from the player and was taken for dead.
         List<Entity> list = new ArrayList<>(c.world.getOtherEntities(p, p.getBoundingBox().expand(Math.min(radius, 128))));
         list.sort((a, b) -> Double.compare(a.squaredDistanceTo(p), b.squaredDistanceTo(p)));
         JsonArray arr = new JsonArray();
-        // the hits coming at the body (combat.Threats: the reflex's own reading), by entity id
-        java.util.Map<Integer, dev.anaka.combat.Impact.Hit> hits = new java.util.HashMap<>();
-        for (var s : dev.anaka.combat.Threats.read(c)) if (s.hit() != null) hits.put(s.entity().getId(), s.hit());
+        // the reflex's own reading (combat.Threats), by id: one call carries every threat's numbers
+        java.util.Map<Integer, dev.anaka.combat.Threats.Seen> seen = new java.util.HashMap<>();
+        for (var s : dev.anaka.combat.Threats.read(c)) seen.put(s.entity().getId(), s);
         for (Entity e : list) {
             JsonObject o = new JsonObject();
             o.addProperty("id", e.getId());
-            dev.anaka.combat.Impact.Hit hit = hits.get(e.getId());
+            var s = seen.get(e.getId());
+            dev.anaka.combat.Impact.Hit hit = s == null ? null : s.hit();
+            if (s != null) o.addProperty("in_reach", s.contact().inReach());
+            JsonArray moved = new JsonArray();                        // blocks/tick, last tick
+            moved.add(e.getX() - e.lastX);
+            moved.add(e.getY() - e.lastY);
+            moved.add(e.getZ() - e.lastZ);
+            o.add("velocity", moved);
+            states(e, o);
             if (hit != null) {
                 // ticks until its hit lands on the body, and where (a projectile's entry point; a mob: the body)
                 o.addProperty("tti_ticks", hit.ticks());

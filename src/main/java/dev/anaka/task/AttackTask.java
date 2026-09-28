@@ -129,7 +129,7 @@ public final class AttackTask extends Task {
         }
         endChase("in reach");
         boolean aimed = Agent.lookAt(p, aim, 45f);
-        if (aimed && cooldown >= 0.95f) {
+        if (aimed && cooldown >= 0.95f && !dev.anaka.combat.ReflexRunner.shielding()) {   // shield > swing
             if (p.isUsingItem()) c.interactionManager.stopUsingItem(p);      // lower the shield to swing
             c.interactionManager.attackEntity(p, target);
             p.swingHand(Hand.MAIN_HAND);

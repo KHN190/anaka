@@ -24,6 +24,8 @@ public final class Reflex {
     public static final int AFTER = LEAD;
     /** A fireball is punched back in its last ticks: close enough to be in reach, not yet in the body. */
     public static final int DEFLECT_TICKS = 3;
+    /** Ticks the client's copy of a projectile trails the server's: reach is judged this far ahead too. */
+    public static final int LAG_TICKS = 2;
     /** A counter-attack while a hit is coming stays inside the shield's arc: at most this far off the soonest hit. */
     public static final double ARC_DEG = 60.0;
     public static final float READY = 0.95f;          // attack cooldown full (the game's own swing is at 1.0)
@@ -86,6 +88,31 @@ public final class Reflex {
             if (t != null) return new Act("attack", t.id(), t.x(), t.y(), t.z(), 0);
         }
         return Act.NONE;
+    }
+
+    /** Pure: a projectile's contact — tti on the body box, and a swing reaching its box ({@code half}) from the eye. */
+    public static Contact projectile(int id, String kind, boolean deflectable, double[] pos, double[] vel,
+                                     Impact.Motion m, double half, double[] lo, double[] hi, double[] eye,
+                                     double reach, int maxTicks) {
+        Impact.Hit hit = Impact.projectile(new double[]{pos[0], pos[1] + half, pos[2]}, vel, m, lo, hi, half, maxTicks);
+        // now or on the next LAG_TICKS: the client sees it late (DeflectTest, two ticks behind: missed)
+        boolean inReach = reaches(eye, pos, half, reach);
+        for (double[] next : Impact.path(pos, vel, m, LAG_TICKS)) inReach |= reaches(eye, next, half, reach);
+        return new Contact(id, kind, hit != null ? hit.ticks() : -1, pos[0], pos[1] + half, pos[2],
+            pos[0] - (lo[0] + hi[0]) / 2, pos[2] - (lo[2] + hi[2]) / 2, inReach, false, deflectable, false, 0f,
+            Math.sqrt(sq(pos[0] - eye[0]) + sq(pos[1] + half - eye[1]) + sq(pos[2] - eye[2])));
+    }
+
+    /** Pure: the eye within {@code reach} of a box of half size {@code half} standing at {@code feet}. */
+    static boolean reaches(double[] eye, double[] feet, double half, double reach) {
+        double cx = Math.max(feet[0] - half, Math.min(eye[0], feet[0] + half));
+        double cy = Math.max(feet[1], Math.min(eye[1], feet[1] + 2 * half));
+        double cz = Math.max(feet[2] - half, Math.min(eye[2], feet[2] + half));
+        return sq(cx - eye[0]) + sq(cy - eye[1]) + sq(cz - eye[2]) <= reach * reach;
+    }
+
+    static double sq(double v) {
+        return v * v;
     }
 
     /** Degrees between two contacts' directions from the body (horizontal). */

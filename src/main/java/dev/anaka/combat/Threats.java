@@ -6,6 +6,9 @@ import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.mob.CreeperEntity;
+import net.minecraft.entity.mob.GhastEntity;
+import net.minecraft.entity.mob.PillagerEntity;
+import net.minecraft.item.RangedWeaponItem;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.entity.mob.Monster;
 import net.minecraft.entity.projectile.AbstractWindChargeEntity;
@@ -66,21 +69,19 @@ public final class Threats {
                 } else {
                     continue;                                           // thrown items: no harm to shield against
                 }
-                hit = Impact.projectile(new double[]{e.getX(), e.getY() + e.getHeight() / 2, e.getZ()},
-                    new double[]{v.x, v.y, v.z}, m, lo, hi, e.getWidth() / 2, MAX_TICKS);
+                double half = e.getWidth() / 2;
+                double[] feet = {e.getX(), e.getY(), e.getZ()}, vel = {v.x, v.y, v.z};
+                hit = Impact.projectile(new double[]{e.getX(), e.getY() + half, e.getZ()}, vel, m, lo, hi, half,
+                    MAX_TICKS);
+                out.add(new Seen(e, Reflex.projectile(e.getId(), kind, deflectable, feet, vel, m, half, lo, hi,
+                    new double[]{eye.x, eye.y, eye.z}, reach, MAX_TICKS), hit));
+                continue;
             } else if (e instanceof Monster && e instanceof LivingEntity le && le.isAlive()) {
                 hostile = true;
                 health = le.getHealth();
                 creeper = e instanceof CreeperEntity;
                 kind = creeper ? "blast" : "melee";
-                int tti;
-                if (e instanceof CreeperEntity cr && cr.getFuseSpeed() > 0) {
-                    tti = Math.max(0, Math.round((1f - cr.getLerpedFuseTime(0f)) * CREEPER_FUSE));
-                } else {
-                    boolean inRange = e instanceof MobEntity mob && mob.isInAttackRange(p);
-                    double gap = inRange ? 0 : gap(e.getBoundingBox(), body) - MELEE_REACH;
-                    tti = Impact.melee(gap, closing(e, p), creeper ? CREEPER_FUSE : 0, MAX_TICKS);
-                }
+                int tti = mobTti(e, le, p, body, lo, hi);
                 if (tti >= 0) hit = new Impact.Hit(tti, p.getX(), p.getY() + p.getHeight() / 2, p.getZ());
             } else {
                 continue;
@@ -93,6 +94,38 @@ public final class Threats {
             out.add(new Seen(e, contact, hit));
         }
         return out;
+    }
+
+    static final int GHAST_WARN = 10;       // ghast: shooting flag up 10 ticks before the fireball leaves
+    static final int BOW_DRAW = 20;         // skeleton/stray: loosed at 20 ticks of pull
+    static final int CROSSBOW_DRAW = 25;    // pillager: crossbow charged at 25
+    static final double ARROW_SPEED = 1.6;  // blocks/tick a mob's arrow leaves at
+
+    /** A mob's hit, from what the client syncs: a lit fuse, a ghast shooting, a bow drawn, else its melee. */
+    static int mobTti(Entity e, LivingEntity le, LivingEntity p, Box body, double[] lo, double[] hi) {
+        if (e instanceof CreeperEntity cr && (cr.getFuseSpeed() > 0 || cr.isIgnited())) {
+            return Math.max(0, Math.round((1f - cr.getLerpedFuseTime(0f)) * CREEPER_FUSE));
+        }
+        double dist = Math.sqrt(e.squaredDistanceTo(p));
+        if (e instanceof GhastEntity g && g.isShooting()) {
+            Vec3d from = e.getEntityPos().add(0, e.getHeight() / 2, 0);
+            Vec3d dir = p.getEyePos().subtract(from).normalize().multiply(0.1);
+            Impact.Hit h = Impact.projectile(new double[]{from.x, from.y, from.z}, new double[]{dir.x, dir.y, dir.z},
+                Impact.Motion.explosive(0.1, FIREBALL_DRAG), lo, hi, 0.5, MAX_TICKS);
+            return h == null ? -1 : Impact.drawn(0, GHAST_WARN, h.ticks());
+        }
+        if (drawing(le)) {
+            int full = e instanceof PillagerEntity ? CROSSBOW_DRAW : BOW_DRAW;
+            return Impact.drawn(le.getItemUseTime(), full, (int) Math.ceil(dist / ARROW_SPEED));
+        }
+        boolean inRange = e instanceof MobEntity mob && mob.isInAttackRange(p);
+        double gap = inRange ? 0 : gap(e.getBoundingBox(), body) - MELEE_REACH;
+        return Impact.melee(gap, closing(e, p), e instanceof CreeperEntity ? CREEPER_FUSE : 0, MAX_TICKS);
+    }
+
+    /** Drawing a bow or charging a crossbow now. */
+    public static boolean drawing(LivingEntity le) {
+        return le.isUsingItem() && le.getActiveItem().getItem() instanceof RangedWeaponItem;
     }
 
     /** How far past the boxes' horizontal gap a mob's attack still lands (MobEntity's attack box: √2.04 − 0.6). */

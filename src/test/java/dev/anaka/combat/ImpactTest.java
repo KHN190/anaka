@@ -81,6 +81,13 @@ class ImpactTest {
     }
 
     @Test
+    void drawnTable() {
+        assertEquals(5 + 7, Impact.drawn(15, 20, 7));      // a bow at 15 of 20 ticks, 7 ticks of flight
+        assertEquals(7, Impact.drawn(25, 20, 7));          // must fail: an over-pulled bow is not early
+        assertEquals(20 + 7, Impact.drawn(0, 20, 7));      // just started drawing
+    }
+
+    @Test
     void segmentTable() {
         double[] a = {0, 0, 0}, b = {1, 1, 1};
         assertEquals(0.5, Impact.segmentEnters(-1, 0.5, 0.5, 1, 0.5, 0.5, a, b), 1e-9);

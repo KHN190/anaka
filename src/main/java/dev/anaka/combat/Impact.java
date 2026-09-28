@@ -72,6 +72,41 @@ public final class Impact {
         return null;
     }
 
+    /** A drawn shot: the draw left ({@code full} − {@code pulled}, never below 0), then the flight. */
+    public static int drawn(int pulled, int full, int flightTicks) {
+        return Math.max(0, full - pulled) + flightTicks;
+    }
+
+    /** Positions after each of the next {@code n} ticks, stepped as {@link #projectile} steps them. */
+    public static double[][] path(double[] pos, double[] vel, Motion m, int n) {
+        double[][] out = new double[n][];
+        double px = pos[0], py = pos[1], pz = pos[2], vx = vel[0], vy = vel[1], vz = vel[2];
+        for (int t = 0; t < n; t++) {
+            if (m.dragFirst()) {
+                double s = Math.sqrt(vx * vx + vy * vy + vz * vz);
+                if (s > 1e-9 && m.accel() != 0) {
+                    vx += vx / s * m.accel();
+                    vy += vy / s * m.accel();
+                    vz += vz / s * m.accel();
+                }
+                vx *= m.drag();
+                vy *= m.drag();
+                vz *= m.drag();
+            }
+            px += vx;
+            py += vy;
+            pz += vz;
+            out[t] = new double[]{px, py, pz};
+            if (!m.dragFirst()) {
+                vx *= m.drag();
+                vy *= m.drag();
+                vz *= m.drag();
+                vy -= m.gravity();
+            }
+        }
+        return out;
+    }
+
     /**
      * Ticks until a melee mob can land a hit: {@code gap} blocks still to close before it is in its attack range
      * (0 or less: in range), closed at {@code closing} blocks/tick, then {@code windup} ticks. -1 when it is not

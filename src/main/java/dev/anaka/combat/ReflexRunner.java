@@ -25,6 +25,11 @@ public final class ReflexRunner {
         return policy;
     }
 
+    /** A shield window is open: a task must not swing (a swing lowers the shield; shield > attack). */
+    public static boolean shielding() {
+        return holdUntil > tick;
+    }
+
     /** POST /reflex: any of shield, counter, deflect (booleans) and priority ("creeper" first, or "fastest"). */
     public static Reflex.Policy set(JsonObject body) {
         Reflex.Policy p = policy;
