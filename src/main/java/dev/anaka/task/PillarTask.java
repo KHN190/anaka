@@ -38,19 +38,23 @@ public final class PillarTask extends Task {
         ClientPlayerEntity p = c.player;
         if (cell == null) {
             if (!p.isOnGround()) return;
+            String why = unfit(c, p.getBlockPos());
+            if (why != null) {
+                fail(why);
+                return;
+            }
             cell = p.getBlockPos();
-            if (c.world.getBlockState(cell.down()).isReplaceable()) {
-                fail("nothing solid to stand on");
-                return;
-            }
-            if (!WorldUtil.passable(c.world, cell.up(2))) {
-                fail("no headroom above");
-                return;
-            }
-            if (!c.world.getBlockState(cell).isReplaceable()) {
-                // A ladder, torch or vine hangs in our own cell: a block can't go there. Say so at once instead
-                // of mistaking it for our placed block and waiting to rise.
-                fail("own cell is occupied by " + WorldUtil.id(c.world.getBlockState(cell).getBlock()));
+        }
+        BlockPos under = new BlockPos(p.getBlockX(), cell.getY(), p.getBlockZ());
+        if (!under.equals(cell) && c.world.getBlockState(cell).isReplaceable()
+                && (p.isOnGround() ? p.getBlockPos().getY() == cell.getY() : p.getY() >= cell.getY())) {
+            // Knocked off the cell (a zombie's hit) before the block went in: pillar where the body now is. Walking
+            // back to the first cell under knockback kept it shuffling for seconds and never rising.
+            String why = unfit(c, under);
+            if (why == null) {
+                cell = under;
+            } else if (p.isOnGround()) {
+                fail("knocked off to " + under.toShortString() + ": " + why);
                 return;
             }
         }
@@ -88,5 +92,17 @@ public final class PillarTask extends Task {
             c.interactionManager.interactBlock(p, Hand.MAIN_HAND, new BlockHitResult(hit, Direction.UP, support, false));
             p.swingHand(Hand.MAIN_HAND);
         }
+    }
+
+    /** Why a block cannot go into `at` to stand on (null: it can): solid below, air to fill, headroom above. */
+    private static String unfit(MinecraftClient c, BlockPos at) {
+        if (c.world.getBlockState(at.down()).isReplaceable()) return "nothing solid to stand on";
+        if (!WorldUtil.passable(c.world, at.up(2))) return "no headroom above";
+        if (!c.world.getBlockState(at).isReplaceable()) {
+            // A ladder, torch or vine hangs in the cell: a block can't go there. Said at once, not mistaken for our
+            // placed block while waiting to rise.
+            return "own cell is occupied by " + WorldUtil.id(c.world.getBlockState(at).getBlock());
+        }
+        return null;
     }
 }
