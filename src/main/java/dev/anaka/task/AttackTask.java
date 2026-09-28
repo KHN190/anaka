@@ -90,7 +90,8 @@ public final class AttackTask extends Task {
         // Keep off (a creeper): after each hit, and whenever it swells, out past its blast; in again only once it
         // stopped swelling. It dies, or blows up into the air — both end it (target gone).
         if ("keepoff".equals(footwork)) {
-            boolean swelling = target instanceof net.minecraft.entity.mob.CreeperEntity cr && cr.getFuseSpeed() > 0;
+            boolean swelling = target instanceof net.minecraft.entity.mob.CreeperEntity cr
+                && (cr.getFuseSpeed() > 0 || cr.isIgnited());          // lit by flint too: never struck while lit
             if (swelling) clearing = true;
             if (clearing && dist >= keepOff && !swelling) clearing = false;
             if (clearing) {

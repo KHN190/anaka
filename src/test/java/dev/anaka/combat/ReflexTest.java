@@ -16,8 +16,12 @@ class ReflexTest {
             Math.hypot(dx, dz));
     }
 
-    static Reflex.Contact creeper(int id, double dx, double dz) {
-        return new Reflex.Contact(id, "blast", -1, dx, 1, dz, dx, dz, true, true, false, true, 20f, Math.hypot(dx, dz));
+    static Reflex.Contact creeper(int id, double dx, double dz) {        // walking: a melee mob
+        return new Reflex.Contact(id, "melee", -1, dx, 1, dz, dx, dz, true, true, false, true, 20f, Math.hypot(dx, dz));
+    }
+
+    static Reflex.Contact litCreeper(int id, int fuse, double dx, double dz) {
+        return new Reflex.Contact(id, "blast", fuse, dx, 1, dz, dx, dz, true, true, false, true, 20f, Math.hypot(dx, dz));
     }
 
     static Reflex.Contact arrow(int id, int tti, double dx, double dz) {
@@ -75,6 +79,10 @@ class ReflexTest {
                 ALL, cooling, "shield:2"},
             {"an arrow in 3 ticks beside a zombie, cooldown full: shield the arrow",
                 List.of(zombie(2, 0, 0, -2, true, 12f), arrow(1, 3, 0, 8)), ALL, READY, "shield:1"},
+            {"must fail: a lit creeper in reach, cooldown full: never struck while it hisses",
+                List.of(litCreeper(7, 20, 1, -2)), ALL, READY, "none:-1"},
+            {"a lit creeper beside a zombie: the zombie is struck, not the fuse",
+                List.of(litCreeper(7, 20, 1, -2), zombie(2, 40, 0.5, -2, true, 12f)), ALL, READY, "attack:2"},
             {"counter off: no swing", List.of(zombie(2, 20, 0, -2, true, 3f)),
                 new Reflex.Policy(true, false, true, true), READY, "none:-1"},
         };

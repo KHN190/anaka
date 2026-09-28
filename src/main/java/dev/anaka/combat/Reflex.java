@@ -88,7 +88,7 @@ public final class Reflex {
         if (pol.counter() && body.cooldown() >= READY) {
             List<Contact> targets = new ArrayList<>();
             for (Contact c : contacts) {
-                if (!c.hostile() || !c.inReach()) continue;
+                if (!c.hostile() || !c.inReach() || "blast".equals(c.kind())) continue;   // never swing at a lit fuse
                 if (soonest != null && soonest.id() != c.id() && angle(soonest, c) > ARC_DEG) continue;
                 targets.add(c);
             }
