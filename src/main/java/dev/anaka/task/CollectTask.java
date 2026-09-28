@@ -93,7 +93,7 @@ public final class CollectTask extends Task {
                 if (!c.world.getBlockState(cell).isAir() && dugOut.add(targetId)) {
                     // Buried: sand or gravel fell onto the drop (mine_stone__buried_by_sand lost 1 of 3). Dig its
                     // cell out, then walk to it again.
-                    child = new MineTask(cell, false, false);
+                    child = new MineTask(cell, false, false).down(true);
                     digging = true;
                     arrivedTicks = 0;
                     return;

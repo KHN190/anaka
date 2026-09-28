@@ -26,7 +26,7 @@ public final class TaskFactory {
             case "goto" -> GotoTask.near(pos(o), dbl(o, "range", 1.0), bool(o, "partial", true), bool(o, "sprint", true),
                 bool(o, "useBoat", true));
             case "mine" -> new MineTask(pos(o), bool(o, "collect", true), bool(o, "requireDrops", true), onlySet(o))
-                .avoiding(avoidSet(o));
+                .avoiding(avoidSet(o)).down(bool(o, "down", false));
             case "place" -> new PlaceTask(pos(o), itemId(o), optPos(o, "against"), optFacing(o)).avoiding(avoidSet(o));
             case "pillar" -> new PillarTask(itemId(o));
             case "travel" -> {

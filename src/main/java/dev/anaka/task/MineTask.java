@@ -33,6 +33,7 @@ public final class MineTask extends Task {
 
     private final java.util.Set<String> only;
     private boolean walkOnly;
+    private boolean down;
     private it.unimi.dsi.fastutil.longs.LongOpenHashSet avoid;
 
     public MineTask(BlockPos pos, boolean collect, boolean requireDrops) {
@@ -51,6 +52,13 @@ public final class MineTask extends Task {
     /** Approach on foot only: TravelTask's own steps, which must not start a travel inside the travel. */
     public MineTask walkOnly() {
         walkOnly = true;
+        down = true;              // a route's own digging goes down through the column it stands in
+        return this;
+    }
+
+    /** The block is under the feet on purpose (a dig down, a buried drop): its own column is a stand spot. */
+    public MineTask down(boolean d) {
+        down = d;
         return this;
     }
 
@@ -163,7 +171,7 @@ public final class MineTask extends Task {
      * from anywhere the body settles in the cell (the centre and 0.3 off it each way), not only from its centre —
      * the arrival leaves the body off-centre, so a spot seen only from the centre lost sight mid-break (NO_STAND). */
     private boolean holds(MinecraftClient c, BlockPos feet, double range) {
-        if (feet.getX() == pos.getX() && feet.getZ() == pos.getZ() && feet.getY() > pos.getY()) return false;
+        if (!down && feet.getX() == pos.getX() && feet.getZ() == pos.getZ() && feet.getY() > pos.getY()) return false;
         ClientPlayerEntity p = c.player;
         net.minecraft.util.math.Vec3d eye = WorldUtil.eyeAt(feet);
         double[][] offs = {{0, 0}, {0.3, 0}, {-0.3, 0}, {0, 0.3}, {0, -0.3}};
