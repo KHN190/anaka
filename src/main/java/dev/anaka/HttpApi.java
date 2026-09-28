@@ -227,12 +227,6 @@ final class HttpApi {
             c.setScreen(null);
             return ok();
         }));
-        route("/hotbar", true, req -> onClient(c -> {
-            int slot = req.body.get("slot").getAsInt();
-            if (slot < 0 || slot > 8) throw new IllegalArgumentException("slot must be 0-8");
-            c.player.getInventory().setSelectedSlot(slot);
-            return ok();
-        }));
         route("/click", true, req -> onClient(c -> {
             int slot = req.body.get("slot").getAsInt();
             int button = req.body.has("button") ? req.body.get("button").getAsInt() : 0;
