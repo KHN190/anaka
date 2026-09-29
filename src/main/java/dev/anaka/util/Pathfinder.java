@@ -280,6 +280,7 @@ public final class Pathfinder {
             // supported(n), not the world's floor: a floor this plan places counts too. With the world check a
             // plan bridged one block per travel (bench: 3-wide lava took 3 travels, 8-wide failed).
             if (!dropped && opts.allowPlace && n.placed < opts.placeBudget && supported(n)
+                && !opts.avoid.contains(side.down().asLong())
                 && WorldUtil.passable(world, side) && WorldUtil.passable(world, side.up())
                 && world.getBlockState(side.down()).isReplaceable()) {
                 // Over lava too (a lake between fortress and portal): the placed block replaces the lava. Only when
@@ -315,7 +316,7 @@ public final class Pathfinder {
             offer(n, down, CLIMB, List.of(), 0, false);
         }
         // Pillar: our own cell must be really empty (a ladder or torch there can't take a block).
-        if (opts.allowPlace && n.placed < opts.placeBudget && supported(n)
+        if (opts.allowPlace && n.placed < opts.placeBudget && supported(n) && !opts.avoid.contains(p.asLong())
             && world.getBlockState(p).isReplaceable() && world.getFluidState(p).isEmpty()
             && !WorldUtil.climbable(world, p)) {
             double head = clearCost(p.up(2));

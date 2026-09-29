@@ -76,9 +76,19 @@ public final class TaskFactory {
     }
 
     private static it.unimi.dsi.fastutil.longs.LongOpenHashSet avoidSet(JsonObject o) {
-        it.unimi.dsi.fastutil.longs.LongOpenHashSet out = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
+        dev.anaka.util.AvoidSet out = new dev.anaka.util.AvoidSet();
         if (o.has("avoid") && o.get("avoid").isJsonArray()) {
             for (JsonElement e : o.getAsJsonArray("avoid")) out.add(pos(e.getAsJsonObject()).asLong());
+        }
+        // "avoidBoxes": [[x1, y1, z1, x2, y2, z2], ...] — protected zones, never dug or built in
+        if (o.has("avoidBoxes") && o.get("avoidBoxes").isJsonArray()) {
+            for (JsonElement e : o.getAsJsonArray("avoidBoxes")) {
+                var a = e.getAsJsonArray();
+                if (a.size() != 6) throw new IllegalArgumentException("\"avoidBoxes\" entries are [x1,y1,z1,x2,y2,z2]");
+                int[] b = new int[6];
+                for (int i = 0; i < 6; i++) b[i] = a.get(i).getAsInt();
+                out.boxes.add(b);
+            }
         }
         return out;
     }

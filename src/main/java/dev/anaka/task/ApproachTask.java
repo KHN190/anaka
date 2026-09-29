@@ -62,6 +62,6 @@ public final class ApproachTask extends Task {
         }
         travelling = true;
         result.addProperty("walk", why);
-        child = new TravelTask(goal, true, true, PLACE_BUDGET, new LongOpenHashSet(avoid));
+        child = new TravelTask(goal, true, true, PLACE_BUDGET, dev.anaka.util.AvoidSet.of(avoid));
     }
 }
