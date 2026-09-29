@@ -20,7 +20,9 @@ import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Reads, from the client's world, every incoming hit on the body: each projectile's time to impact and impact point
@@ -37,6 +39,28 @@ public final class Threats {
     static final double ARROW_DRAG = 0.99;          // PersistentProjectileEntity's air drag
     static final int CREEPER_FUSE = 30;             // CreeperEntity's default fuse (ticks)
 
+    /**
+     * A projectile's last fix: the position the server last sent (its tracked position), the velocity then, and the
+     * world tick it came. The client never moves a fireball between the server's updates (every 10 ticks: EntityType
+     * FIREBALL trackingTickInterval; in the volley's reads its time to impact held 6 ticks, then jumped 8-10), so the
+     * reading is stepped forward from the fix by the ticks since (dead reckoning, not the lerp toward it).
+     */
+    record Fix(double[] pos, double[] vel, long tick) {}
+
+    private static final Map<Integer, Fix> FIXES = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Pure: a new server position starts a new fix; the same one keeps the old fix (its tick). */
+    static Fix fix(Fix last, double[] tracked, double[] vel, long now) {
+        if (last == null || !Arrays.equals(last.pos(), tracked)) return new Fix(tracked, vel, now);
+        return last;
+    }
+
+    /** Pure: {position, velocity} now, stepped from the fix along the motion by the ticks since it came. */
+    static double[][] reckon(Fix f, long now, Impact.Motion m) {
+        int ticks = (int) Math.max(0, Math.min(MAX_TICKS, now - f.tick()));
+        return Impact.advance(f.pos(), f.vel(), m, ticks);
+    }
+
     /** One entity's reading: the reflex's view of it and, when a hit is coming, where and when it lands. */
     public record Seen(Entity entity, Reflex.Contact contact, Impact.Hit hit) {}
 
@@ -48,6 +72,8 @@ public final class Threats {
         double[] lo = {body.minX, body.minY, body.minZ}, hi = {body.maxX, body.maxY, body.maxZ};
         Vec3d eye = p.getEyePos();
         double reach = WorldUtil.entityReach(p);
+        long now = c.world.getTime();
+        java.util.Set<Integer> seenIds = new java.util.HashSet<>();
         for (Entity e : c.world.getOtherEntities(p, body.expand(RADIUS))) {
             Impact.Hit hit = null;
             String kind;
@@ -70,8 +96,14 @@ public final class Threats {
                     continue;                                           // thrown items: no harm to shield against
                 }
                 double half = e.getWidth() / 2;
-                double[] feet = {e.getX(), e.getY(), e.getZ()}, vel = {v.x, v.y, v.z};
-                hit = Impact.projectile(new double[]{e.getX(), e.getY() + half, e.getZ()}, vel, m, lo, hi, half,
+                Vec3d tracked = e.getTrackedPosition().getPos();
+                Fix f = fix(FIXES.get(e.getId()), new double[]{tracked.x, tracked.y, tracked.z},
+                    new double[]{v.x, v.y, v.z}, now);
+                FIXES.put(e.getId(), f);
+                seenIds.add(e.getId());
+                double[][] at = reckon(f, now, m);
+                double[] feet = at[0], vel = at[1];
+                hit = Impact.projectile(new double[]{feet[0], feet[1] + half, feet[2]}, vel, m, lo, hi, half,
                     MAX_TICKS);
                 out.add(new Seen(e, Reflex.projectile(e.getId(), kind, deflectable, feet, vel, m, half, lo, hi,
                     new double[]{eye.x, eye.y, eye.z}, reach, MAX_TICKS), hit));
@@ -94,6 +126,7 @@ public final class Threats {
                 creeper, health, Math.sqrt(e.squaredDistanceTo(p)));
             out.add(new Seen(e, contact, hit));
         }
+        FIXES.keySet().retainAll(seenIds);          // gone: its fix with it
         return out;
     }
 

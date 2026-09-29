@@ -77,6 +77,34 @@ public final class Impact {
         return Math.max(0, full - pulled) + flightTicks;
     }
 
+    /** {position, velocity} after {@code n} ticks, stepped as {@link #projectile} steps them (dead reckoning). */
+    public static double[][] advance(double[] pos, double[] vel, Motion m, int n) {
+        double px = pos[0], py = pos[1], pz = pos[2], vx = vel[0], vy = vel[1], vz = vel[2];
+        for (int t = 0; t < n; t++) {
+            if (m.dragFirst()) {
+                double s = Math.sqrt(vx * vx + vy * vy + vz * vz);
+                if (s > 1e-9 && m.accel() != 0) {
+                    vx += vx / s * m.accel();
+                    vy += vy / s * m.accel();
+                    vz += vz / s * m.accel();
+                }
+                vx *= m.drag();
+                vy *= m.drag();
+                vz *= m.drag();
+            }
+            px += vx;
+            py += vy;
+            pz += vz;
+            if (!m.dragFirst()) {
+                vx *= m.drag();
+                vy *= m.drag();
+                vz *= m.drag();
+                vy -= m.gravity();
+            }
+        }
+        return new double[][]{{px, py, pz}, {vx, vy, vz}};
+    }
+
     /** Positions after each of the next {@code n} ticks, stepped as {@link #projectile} steps them. */
     public static double[][] path(double[] pos, double[] vel, Motion m, int n) {
         double[][] out = new double[n][];
