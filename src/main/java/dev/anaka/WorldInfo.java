@@ -327,10 +327,11 @@ final class WorldInfo {
             var s = seen.get(e.getId());
             dev.anaka.combat.Impact.Hit hit = s == null ? null : s.hit();
             if (s != null) o.addProperty("in_reach", s.contact().inReach());
-            JsonArray moved = new JsonArray();                        // blocks/tick, last tick
-            moved.add(e.getX() - e.lastX);
-            moved.add(e.getY() - e.lastY);
-            moved.add(e.getZ() - e.lastZ);
+            // blocks/tick: a projectile's reckoned velocity (its client copy moves only on the server's updates)
+            double[] v = dev.anaka.combat.Threats.reported(s == null ? null : s.vel(),
+                new double[]{e.getX() - e.lastX, e.getY() - e.lastY, e.getZ() - e.lastZ});
+            JsonArray moved = new JsonArray();
+            for (double k : v) moved.add(k);
             o.add("velocity", moved);
             states(e, o);
             if (hit != null) {
