@@ -84,6 +84,8 @@ final class WorldInfo {
         o.addProperty("screen", c.currentScreen == null ? "none" : c.currentScreen.getClass().getSimpleName());
         o.add("lookingAt", lookingAt(c));
         o.add("control", control(c));
+        JsonObject hit = CombatRecorder.lastDamage();
+        if (hit != null) o.add("lastDamage", hit);         // what hurt us last, by the game's damage source
         return o;
     }
 

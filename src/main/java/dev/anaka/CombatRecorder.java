@@ -101,6 +101,18 @@ public final class CombatRecorder {
         e.addProperty("health", entity.getHealth());
         e.addProperty("tick", lastTick);
         EventLog.record("damage", e);
+        // the last hit for /state: its source by the game's own name (fall, mob, onFire…), stamped with world time
+        JsonObject l = o.deepCopy();
+        l.addProperty("gameTime", entity.getEntityWorld().getTime());
+        last = l;
+    }
+
+    private static volatile JsonObject last;
+
+    /** The last damage the player took (source, nearest attacker, amount, gameTime), or null. */
+    public static JsonObject lastDamage() {
+        JsonObject l = last;
+        return l == null ? null : l.deepCopy();
     }
 
     /** Frames newer than `since` (a tick number). `since < 0` returns everything held. */
