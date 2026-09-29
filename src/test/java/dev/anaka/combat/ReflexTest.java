@@ -119,6 +119,11 @@ class ReflexTest {
             assertEquals(r[4], a.still(), r[0] + ": keys");
         }
         assertEquals(0, Reflex.stopTicks(Reflex.STILL, true), "at STILL: still");
+        // a standing body as the game has it: no horizontal move, falling 0.0784 a tick into the ground
+        double standing = Reflex.moved(0, 0);
+        Reflex.Body onFloor = new Reflex.Body(false, 1f, 0, 0, 0, 0, standing, true);
+        assertEquals("deflect:5", act(List.of(fireball(5, 2, true)), ALL, onFloor),
+            "must fail: a standing body with no shield never deflects (no act at all)");
         assertEquals(Reflex.NEVER, Reflex.stopTicks(0, false), "airborne: never");
     }
 

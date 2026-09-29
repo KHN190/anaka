@@ -69,8 +69,25 @@ public final class ReflexRunner {
             }
         }
         o.add("recent", r);
+        Window w = window;
+        if (w != null) {
+            JsonObject j = new JsonObject();
+            j.addProperty("tick", w.tick());
+            j.addProperty("id", w.id());
+            j.addProperty("tti", w.tti());
+            j.addProperty("inReach", w.inReach());
+            j.addProperty("speed", w.speed());
+            j.addProperty("onGround", w.onGround());
+            j.addProperty("act", w.act());
+            o.add("window", j);
+        }
         return o;
     }
+
+    /** The last tick a fireball stood in the deflect window: the body's speed and footing, and the act chosen. */
+    record Window(long tick, int id, int tti, boolean inReach, double speed, boolean onGround, String act) {}
+
+    private static volatile Window window;
 
     /** The recent acts kept for GET /reflex. */
     static final int KEEP = 32;
@@ -106,9 +123,18 @@ public final class ReflexRunner {
         for (Threats.Seen s : seen) contacts.add(s.contact());
         boolean eating = p.isUsingItem() && p.getActiveHand() == Hand.MAIN_HAND;
         boolean shield = InvUtil.id(p.getOffHandStack()).equals("minecraft:shield") && !eating;
-        Vec3d v = p.getVelocity();
-        Reflex.Act act = Reflex.decide(contacts, pol, new Reflex.Body(shield, p.getAttackCooldownProgress(0.5f),
-            holdUntil - tick, holdX, holdY, holdZ, Math.hypot(v.x, v.z), p.isOnGround()));
+        // how far the body moved this tick (the trace's own measure of standing), not its velocity field
+        double speed = Reflex.moved(p.getX() - p.lastX, p.getZ() - p.lastZ);
+        Reflex.Body body = new Reflex.Body(shield, p.getAttackCooldownProgress(0.5f), holdUntil - tick, holdX, holdY,
+            holdZ, speed, p.isOnGround());
+        Reflex.Act act = Reflex.decide(contacts, pol, body);
+        for (Reflex.Contact k : contacts) {
+            if (k.deflectable() && k.tti() >= 0 && k.tti() <= Reflex.DEFLECT_TICKS) {
+                // a readout: the body as the reflex saw it with a fireball in its deflect window, and what it did
+                window = new Window(c.world.getTime(), k.id(), k.tti(), k.inReach(), speed, p.isOnGround(), act.what());
+                break;
+            }
+        }
         if (act.still() && !p.isTouchingWater() && !p.isInLava()) {
             // a deflect planned (never over the water/lava nets): the task's movement paused this tick (its keys come back next tick, pressed anew)
             a.input.forward = a.input.back = a.input.left = a.input.right = false;
