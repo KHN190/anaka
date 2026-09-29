@@ -80,12 +80,6 @@ public final class Reflex {
         }
     }
 
-    /** Pure: the body's horizontal speed from how far it moved in the last tick (never its vertical: a standing
-     * body falls 0.0784 a tick into the ground; never the velocity field, which a standing body reads nonzero). */
-    public static double moved(double dx, double dz) {
-        return Math.hypot(dx, dz);
-    }
-
     /** Pure: ticks until the body is still with its move keys released; 0 already, NEVER airborne. */
     public static int stopTicks(double speed, boolean onGround) {
         if (!onGround) return NEVER;
