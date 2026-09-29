@@ -58,8 +58,11 @@ public final class WorldUtil {
         FluidState fluid = s.getFluidState();
         if (!fluid.isEmpty() && fluid.isIn(FluidTags.LAVA)) return false;
         if (HAZARDS.contains(s.getBlock())) return false;
-        // Wooden doors can be opened by walking up to them (GotoTask does that), so plan through them.
-        return s.isIn(BlockTags.CLIMBABLE) || s.isIn(BlockTags.WOODEN_DOORS) || s.getCollisionShape(w, p).isEmpty();
+        Boolean open = s.contains(net.minecraft.state.property.Properties.OPEN)
+            ? s.get(net.minecraft.state.property.Properties.OPEN) : null;
+        // an open door of any kind (iron too) keeps a thin panel collision: still passed through (Passable.by)
+        return Passable.by(s.isIn(BlockTags.CLIMBABLE), s.isIn(BlockTags.WOODEN_DOORS), open,
+            s.getCollisionShape(w, p).isEmpty());
     }
 
     public static boolean closedWoodenDoor(World w, BlockPos p) {
