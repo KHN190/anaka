@@ -92,6 +92,35 @@ class DeflectTest {
     }
 
     @Test
+    void aCopySeenEveryTenTicksReportsItsVelocity() {
+        int interval = 10;                                      // FIREBALL trackingTickInterval
+        double[] pos = {0, 1.12, -12}, vel = {0, 0, 0.1};
+        double[] copy = pos.clone(), copyVel = vel.clone(), lastCopy = pos.clone();
+        Threats.Fix fix = null;
+        boolean zeroDelta = false;
+        for (int t = 0; t < 30; t++) {
+            if (t % interval == 0) {
+                copy = pos.clone();
+                copyVel = vel.clone();
+            }
+            fix = Threats.fix(fix, copy, copyVel, t);
+            double[] reported = Threats.reported(Threats.reckon(fix, t, FIREBALL)[1],
+                new double[]{copy[0] - lastCopy[0], copy[1] - lastCopy[1], copy[2] - lastCopy[2]});
+            for (int i = 0; i < 3; i++) {
+                assertTrue(Math.abs(reported[i] - vel[i]) < 1e-9, "tick " + t + ": the server's velocity, axis " + i);
+            }
+            zeroDelta |= t % interval != 0 && copy[2] - lastCopy[2] == 0;
+            lastCopy = copy.clone();
+            double s = Math.sqrt(vel[0] * vel[0] + vel[1] * vel[1] + vel[2] * vel[2]);
+            for (int i = 0; i < 3; i++) {
+                vel[i] = (vel[i] + vel[i] / s * ACCEL) * DRAG;
+                pos[i] += vel[i];
+            }
+        }
+        assertTrue(zeroDelta, "must fail: the last-tick delta of the copy reads 0 between updates");
+    }
+
+    @Test
     void aPunchSendsTheFireballAlongTheLookSent() {
         double[] ball = {0, 1.62, -2.5};                        // the fireball in reach, ahead at eye height
         float[] sent = Reflex.look(EYE, ball);
