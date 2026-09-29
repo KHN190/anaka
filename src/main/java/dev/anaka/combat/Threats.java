@@ -62,17 +62,7 @@ public final class Threats {
     }
 
     /** One entity's reading: the reflex's view of it and, when a hit is coming, where and when it lands. */
-    public record Seen(Entity entity, Reflex.Contact contact, Impact.Hit hit, double[] vel) {
-        public Seen(Entity entity, Reflex.Contact contact, Impact.Hit hit) {
-            this(entity, contact, hit, null);
-        }
-    }
-
-    /** Pure: the velocity to report (blocks/tick): a projectile's reckoned one, else the last tick's move (a mob's
-     * copy is lerped every tick; a fireball's moves only on the server's updates, its last-tick move reads 0). */
-    public static double[] reported(double[] reckoned, double[] lastTick) {
-        return reckoned != null ? reckoned : lastTick;
-    }
+    public record Seen(Entity entity, Reflex.Contact contact, Impact.Hit hit) {}
 
     public static List<Seen> read(MinecraftClient c) {
         ClientPlayerEntity p = c.player;
@@ -116,7 +106,7 @@ public final class Threats {
                 hit = Impact.projectile(new double[]{feet[0], feet[1] + half, feet[2]}, vel, m, lo, hi, half,
                     MAX_TICKS);
                 out.add(new Seen(e, Reflex.projectile(e.getId(), kind, deflectable, feet, vel, m, half, lo, hi,
-                    new double[]{eye.x, eye.y, eye.z}, reach, MAX_TICKS), hit, vel));
+                    new double[]{eye.x, eye.y, eye.z}, reach, MAX_TICKS), hit));
                 continue;
             } else if (e instanceof Monster && e instanceof LivingEntity le && le.isAlive()) {
                 hostile = true;
