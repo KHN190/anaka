@@ -132,14 +132,25 @@ public final class ReflexRunner {
                 // the swing names its target: the task's look is put back in the same tick, its feet never turned
                 float yaw = p.getYaw(), pitch = p.getPitch();
                 Agent.lookAt(p, new Vec3d(act.x(), act.y(), act.z()), 180f);
+                boolean deflect = "deflect".equals(act.what());
+                // the server redirects a punched fireball along ITS copy of our look (REDIRECTED: the attacker's
+                // rotation vector); this tick's look went out before the reflex ran — send the look at it first
+                if (deflect) sendLook(c, p, p.getYaw(), p.getPitch());
                 if (p.isUsingItem()) c.interactionManager.stopUsingItem(p);      // a swing lowers the shield
                 c.interactionManager.attackEntity(p, target);
                 p.swingHand(Hand.MAIN_HAND);
                 p.setYaw(yaw);
                 p.setPitch(pitch);
+                if (deflect) sendLook(c, p, yaw, pitch);          // the server back on the task's look
             }
             default -> { }
         }
+    }
+
+    private static void sendLook(MinecraftClient c, ClientPlayerEntity p, float yaw, float pitch) {
+        if (c.getNetworkHandler() == null) return;
+        c.getNetworkHandler().sendPacket(new net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket.LookAndOnGround(
+            yaw, pitch, p.isOnGround(), p.horizontalCollision));
     }
 
     /** Face `at` at once; the task's move keys re-mapped so its feet keep their world direction (a travel runs on). */

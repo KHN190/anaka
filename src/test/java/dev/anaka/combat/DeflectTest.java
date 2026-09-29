@@ -92,6 +92,22 @@ class DeflectTest {
     }
 
     @Test
+    void aPunchSendsTheFireballAlongTheLookSent() {
+        double[] ball = {0, 1.62, -2.5};                        // the fireball in reach, ahead at eye height
+        float[] sent = Reflex.look(EYE, ball);
+        double[] away = Reflex.facing(sent[0], sent[1]);        // the server's REDIRECTED heading
+        double[] toBall = {ball[0] - EYE[0], ball[1] - EYE[1], ball[2] - EYE[2]};
+        double n = Math.sqrt(toBall[0] * toBall[0] + toBall[1] * toBall[1] + toBall[2] * toBall[2]);
+        for (int i = 0; i < 3; i++) {
+            assertTrue(Math.abs(away[i] - toBall[i] / n) < 1e-4, "the look sent points at the fireball: axis " + i);
+        }
+        float[] restored = {90f, 45f};                          // a task's look (down and aside), put back
+        double[] wrong = Reflex.facing(restored[0], restored[1]);
+        double along = wrong[0] * toBall[0] / n + wrong[1] * toBall[1] / n + wrong[2] * toBall[2] / n;
+        assertTrue(along < 0.5, "must fail: the restored look sends it elsewhere (down and aside)");
+    }
+
+    @Test
     void aFireballIsPunchedBeforeItLands() {
         // (situation, where it was shot from, its speed then, ticks the client lags) → deflected on some tick
         Object[][] rows = {

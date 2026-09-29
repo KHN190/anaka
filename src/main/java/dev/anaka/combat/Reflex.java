@@ -145,6 +145,20 @@ public final class Reflex {
         return new boolean[]{f2 > cut, f2 < -cut, s2 > cut, s2 < -cut};
     }
 
+    /** Pure: {yaw, pitch} (degrees) facing {@code at} from {@code eye}, as Agent.lookAt turns. */
+    public static float[] look(double[] eye, double[] at) {
+        double dx = at[0] - eye[0], dy = at[1] - eye[1], dz = at[2] - eye[2];
+        return new float[]{(float) (Math.toDegrees(Math.atan2(dz, dx)) - 90.0),
+            (float) -Math.toDegrees(Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)))};
+    }
+
+    /** Pure: the unit vector of a rotation, as the server reads it (Entity.getRotationVector): a punched fireball's
+     * new heading (ProjectileDeflection.REDIRECTED sets its velocity to the attacker's). */
+    public static double[] facing(float yaw, float pitch) {
+        double f = Math.toRadians(pitch), g = Math.toRadians(-yaw);
+        return new double[]{Math.sin(g) * Math.cos(f), -Math.sin(f), Math.cos(g) * Math.cos(f)};
+    }
+
     /** Degrees between two contacts' directions from the body (horizontal). */
     static double angle(Contact a, Contact b) {
         double na = Math.hypot(a.dx(), a.dz()), nb = Math.hypot(b.dx(), b.dz());
