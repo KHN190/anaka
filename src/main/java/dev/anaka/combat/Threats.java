@@ -152,7 +152,7 @@ public final class Threats {
                 health = mob.getHealth();
                 creeper = e instanceof CreeperEntity;
                 // a lit creeper is a blast on a known fuse; walking, it is a melee mob like any other
-                kind = lit(e) ? "blast" : "melee";
+                kind = lit(e) ? "blast" : drawing(mob) ? "draw" : "melee";
                 mobIds.add(e.getId());
                 int tti = hostile ? mobTti(c.world, mob, p, lo, hi, now) : -1;
                 if (tti >= 0) hit = new Impact.Hit(tti, p.getX(), p.getY() + p.getHeight() / 2, p.getZ());

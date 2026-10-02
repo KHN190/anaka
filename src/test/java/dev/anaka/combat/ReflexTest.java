@@ -28,6 +28,10 @@ class ReflexTest {
         return new Reflex.Contact(id, "blast", fuse, dx, 1, dz, dx, dz, true, true, false, true, 20f, Math.hypot(dx, dz));
     }
 
+    static Reflex.Contact skeleton(int id, String kind, int tti, double dx, double dz) {     // drawing its bow
+        return new Reflex.Contact(id, kind, tti, dx, 1, dz, dx, dz, false, true, false, false, 20f, Math.hypot(dx, dz));
+    }
+
     static Reflex.Contact arrow(int id, int tti, double dx, double dz) {
         return new Reflex.Contact(id, "projectile", tti, dx, 1.5, dz, dx, dz, false, false, false, false, 0f,
             Math.hypot(dx, dz));
@@ -53,6 +57,10 @@ class ReflexTest {
             {"policy off: nothing, whatever comes", List.of(arrow(1, 3, 0, -8)), Reflex.Policy.OFF, READY, "none:-1"},
             {"an arrow in 3 ticks: shield", List.of(arrow(1, 3, 0, -8)), ALL, READY, "shield:1"},
             {"an arrow in 6 ticks (the lead): shield", List.of(arrow(1, Reflex.LEAD, 0, -8)), ALL, READY, "shield:1"},
+            {"a drawing skeleton, its arrow due in the lead (draw left + flight): shield before the arrow exists",
+                List.of(skeleton(9, "draw", Reflex.LEAD, 0, -13)), ALL, READY, "shield:9"},
+            {"must fail: the same draw labelled melee (Threats before the fix): no shield until the arrow is seen",
+                List.of(skeleton(9, "melee", Reflex.LEAD, 0, -13)), ALL, READY, "none:-1"},
             {"must fail: an arrow in 7 ticks: not yet (up too soon is a lowered sword)",
                 List.of(arrow(1, Reflex.LEAD + 1, 0, -8)), ALL, READY, "none:-1"},
             {"shield beats a ready counter", List.of(zombie(2, 9, 0, -2, true, 20f), arrow(1, 2, 0, -8)), ALL, READY,
