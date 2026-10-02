@@ -14,7 +14,7 @@ class DeflectTest {
     static final double REACH = 2.7, HALF = 0.5, ACCEL = 0.1, DRAG = 0.95;       // reach: 3.0 less REACH_MARGIN
     static final Impact.Motion FIREBALL = Impact.Motion.explosive(ACCEL, DRAG);
     static final Reflex.Policy DEFLECT = new Reflex.Policy(true, false, true, true);
-    static final Reflex.Body BODY = new Reflex.Body(true, 1f, 0, 0, 0, 0);
+    static final Reflex.Body BODY = new Reflex.Body(true, 1f, 0, -1);
 
     /** First tick it is deflected, or -1: landed. The reflex reads it {@code lag} ticks old; landing is the server's. */
     static int flown(double[] from, double speed, int lag) {
@@ -27,7 +27,7 @@ class DeflectTest {
             seen.add(new double[][]{pos.clone(), vel.clone()});
             double[][] old = seen.get(Math.max(0, seen.size() - 1 - lag));
             Reflex.Contact c = Reflex.projectile(1, "fireball", true, old[0], old[1], FIREBALL, HALF, LO, HI, EYE,
-                REACH, 60);
+                REACH, 60, Impact.Terrain.OPEN);
             if ("deflect".equals(Reflex.decide(List.of(c), DEFLECT, BODY).what())) return t;
             double s = Math.sqrt(vel[0] * vel[0] + vel[1] * vel[1] + vel[2] * vel[2]);
             for (int i = 0; i < 3; i++) {
@@ -64,7 +64,7 @@ class DeflectTest {
                 p = at[0];
                 v = at[1];
             }
-            Reflex.Contact c = Reflex.projectile(1, "fireball", true, p, v, FIREBALL, HALF, LO, HI, EYE, REACH, 60);
+            Reflex.Contact c = Reflex.projectile(1, "fireball", true, p, v, FIREBALL, HALF, LO, HI, EYE, REACH, 60, Impact.Terrain.OPEN);
             if ("deflect".equals(Reflex.decide(List.of(c), DEFLECT, BODY).what())) {
                 return t;
             }

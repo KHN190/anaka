@@ -2,6 +2,8 @@ package dev.anaka.combat;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -93,5 +95,69 @@ class ImpactTest {
         assertEquals(0.5, Impact.segmentEnters(-1, 0.5, 0.5, 1, 0.5, 0.5, a, b), 1e-9);
         assertEquals(-1, Impact.segmentEnters(-1, 2, 0.5, 1, 2, 0.5, a, b), 1e-9);      // must fail: above it
         assertEquals(-1, Impact.segmentEnters(-2, 0.5, 0.5, -1, 0.5, 0.5, a, b), 1e-9); // must fail: short of it
+    }
+
+    @Test
+    void aFlightStopsAtTheFirstCollider() {
+        // a level shot at 1 b/t from 10 out: open air lands on tick 10; its block test runs from its position (the box
+        // bottom, 0.25 under the centre), the game's point ray
+        double[] level = {0, 1, -10}, high = {0, 1.9, -10}, ahead = {0, 0, 1};
+        double[] post = BoxTerrain.box(-0.125, 0, -3.125, 0.125, 1.5, -2.875);
+        Object[][] rows = {
+            // (situation, from, terrain) → tick it lands, or null
+            {"open air", level, BoxTerrain.of(), 10},
+            {"must fail: a wall between (today's prediction flew through it)", level,
+                BoxTerrain.of(BoxTerrain.box(-0.5, 0, -4, 0.5, 2, -3)), null},
+            {"a bottom slab under the line: passes", level, BoxTerrain.of(BoxTerrain.box(-0.5, 0, -4, 0.5, 0.5, -3)),
+                10},
+            {"a top slab on the line: stops it", level, BoxTerrain.of(BoxTerrain.box(-0.5, 0.5, -4, 0.5, 1, -3)), null},
+            {"a fence post on the line: stops it", level, BoxTerrain.of(post), null},
+            {"over the fence post (1.5 high): lands", high, BoxTerrain.of(post), 10},
+            {"grass, flowers, a cobweb: no collider, no slowing (vanilla moves projectiles by setPosition)", level,
+                BoxTerrain.of(), 10},
+            {"started inside a block (stuck): never lands", level,
+                BoxTerrain.of(BoxTerrain.box(-0.5, 0, -10.5, 0.5, 1, -9.5)), null},
+        };
+        for (Object[] r : rows) {
+            Impact.Hit h = Impact.projectile((double[]) r[1], ahead, STILL, LO, HI, 0.25, 60, (Impact.Terrain) r[2]);
+            assertEquals(r[3], h == null ? null : h.ticks(), (String) r[0]);
+        }
+    }
+
+    @Test
+    void waterSlowsAFlight() {
+        Impact.Motion arrow = Impact.Motion.persistent(0.99, 0.05, 0.6);
+        double[] from = {0, 1.6, -30}, vel = {0, 0.25, 3};
+        Impact.Hit dry = Impact.projectile(from, vel, arrow, LO, HI, 0.25, 60, Impact.Terrain.OPEN);
+        Impact.Hit wet = Impact.projectile(from, vel, arrow, LO, HI, 0.25, 60,
+            new BoxTerrain(List.of(), List.of(BoxTerrain.box(-5, -5, -20, 5, 10, -8))));
+        assertEquals(11, dry.ticks(), "open air as anArrowFalls");
+        assertTrue(wet == null || wet.ticks() > dry.ticks(), "must fail: water left out (drag 0.6 a tick in it)");
+        Impact.Motion fireball = Impact.Motion.explosive(0.1, 0.95, 0.8);
+        double[] fFrom = {0, 1, -20}, fVel = {0, 0, 0.5};
+        Impact.Hit fd = Impact.projectile(fFrom, fVel, fireball, LO, HI, 0.5, 60, Impact.Terrain.OPEN);
+        Impact.Hit fw = Impact.projectile(fFrom, fVel, fireball, LO, HI, 0.5, 60,
+            new BoxTerrain(List.of(), List.of(BoxTerrain.box(-5, -5, -15, 5, 10, -5))));
+        assertNotNull(fd);
+        assertNotNull(fw);
+        assertTrue(fw.ticks() > fd.ticks(), "a fireball through water: 0.8 drag, later");
+    }
+
+    @Test
+    void exposureMirrorsTheExplosion() {
+        // a player box 0.6 × 1.8 × 0.6, the blast 2 blocks off, a creeper on a ledge (feet at 1.2)
+        double[] lo = {-0.3, 0, -0.3}, hi = {0.3, 1.8, 0.3}, blast = {0, 1.2, -2};
+        Object[][] rows = {
+            // (situation, terrain) → exposure within {min, max}
+            {"open: every point reached", BoxTerrain.of(), 1.0, 1.0},
+            {"must fail: a wall between: none (a shield raised for a blast it never feels)",
+                BoxTerrain.of(BoxTerrain.box(-2, -1, -1.5, 2, 3, -1)), 0.0, 0.0},
+            {"a wall to the knees: the upper points reached", BoxTerrain.of(BoxTerrain.box(-2, -1, -1.5, 2, 0.6, -1)),
+                0.01, 0.99},
+        };
+        for (Object[] r : rows) {
+            double e = Impact.exposure(blast, lo, hi, (Impact.Terrain) r[1]);
+            assertTrue(e >= (double) r[2] && e <= (double) r[3], r[0] + ": " + e);
+        }
     }
 }

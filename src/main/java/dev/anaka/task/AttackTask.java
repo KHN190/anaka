@@ -108,7 +108,7 @@ public final class AttackTask extends Task {
             }
         }
         // Footwork while the swing refills: never forward into its reach before the hit is ready.
-        if (footwork != null && !"keepoff".equals(footwork) && cooldown < READY && dist <= reach + BACK_OFF) {
+        if (holdOff(footwork, cooldown, dist, reach)) {
             endChase("footwork");
             Agent.lookAt(p, aim, 45f);
             if (footwork.equals("back")) {
@@ -149,6 +149,12 @@ public final class AttackTask extends Task {
     static final double STRAIGHT_MAX = 6.0;
     static final float READY = 0.85f;        // the swing nearly refilled: step in for it
     static final double BACK_OFF = 1.5;      // how far past reach the footwork stays (then it closes normally)
+
+    /** Pure: the footwork keeps out of its reach while the swing refills — every footwork, keepoff too (a creeper
+     * closed on before READY lit its fuse). */
+    static boolean holdOff(String footwork, float cooldown, double dist, double reach) {
+        return footwork != null && cooldown < READY && dist <= reach + BACK_OFF;
+    }
     static final int STRAFE_TICKS = 12;      // one sidestep's length before turning the other way
     static final double KEEP_OFF = 5.0;      // default keepOff: eye-to-target distance past a swelling creeper's blast
 

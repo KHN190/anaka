@@ -148,8 +148,13 @@ public final class Agent {
         client.options.useKey.setPressed(holdUse);
     }
 
+    /** Pure (S6): the agent's tick — its task and every reflex — runs only while the agent holds the body. */
+    static boolean ticks(boolean controlling) {
+        return controlling;
+    }
+
     public void onEndTick(MinecraftClient client) {
-        if (!controlling) return;
+        if (!ticks(controlling)) return;
         if (client.player == null || client.world == null) {
             cancelAll("left the world");
             controlling = false;
@@ -206,7 +211,10 @@ public final class Agent {
         // Eat on the way: only while the task is just moving (never mid-dig, mid-swing, mid-place).
         if (dev.anaka.util.AutoEat.tick(client, p, current != null && current.walking())) holdUse = true;
         // A walk never stares an enderman in the eyes (the pitch moves, the yaw and so the feet stay).
-        if (current != null && current.walking()) dev.anaka.combat.Gaze.avoid(client, p);
+        if (dev.anaka.combat.Gaze.on(dev.anaka.combat.ReflexRunner.policy(), current != null && current.walking())
+            && dev.anaka.combat.Gaze.avoid(client, p)) {
+            dev.anaka.combat.ReflexRunner.acted("gaze", -1, client.world.getTime());
+        }
         // Last: the combat reflex (Python's policy, off by default) — a due hit's shield over what the task pressed.
         dev.anaka.combat.ReflexRunner.tick(client, this);
 

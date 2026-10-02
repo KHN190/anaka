@@ -121,9 +121,8 @@ public final class CollectTask extends Task {
                 // sweep waited out arrivedTicks at every hole (mine_stone__interrupt_mid_work: ~4 s a sweep).
                 return dx * dx + dz * dz <= PICKUP_HORIZONTAL * PICKUP_HORIZONTAL && dy >= 0 && dy <= 1;
             }, at);
-            // The one approach (walk, else dig/place through): a drop in a 1-high slot has no standing cell in
-            // pickup range on foot (brain__underground's diamond: "collecting items (0)").
-            child = ApproachTask.to(goal, "picking up item", false, GotoTask.MAX_NODES, false, null);
+            // walk only: a drop with no standing cell in pickup range on foot is left, Python decides a way to it
+            child = ApproachTask.to(goal, "picking up item", false, GotoTask.MAX_NODES);
         }
         if (runChild(c, a) && child.status() == Status.FAILED) {
             unreachable.add(targetId);

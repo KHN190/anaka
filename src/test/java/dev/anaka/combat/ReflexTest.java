@@ -9,11 +9,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 /** Reflex.decide: deflect &gt; shield &gt; counter, the soonest hit faced, counters inside the shield's arc. */
 class ReflexTest {
     static final Reflex.Policy ALL = new Reflex.Policy(true, true, true, true);
-    static final Reflex.Body READY = new Reflex.Body(true, 1f, 0, 0, 0, 0);
+    static final Reflex.Body READY = new Reflex.Body(true, 1f, 0, -1);
 
     static Reflex.Contact zombie(int id, int tti, double dx, double dz, boolean inReach, float hp) {
         return new Reflex.Contact(id, "melee", tti, dx, 1, dz, dx, dz, inReach, true, false, false, hp,
             Math.hypot(dx, dz));
+    }
+
+    static Reflex.Contact neutral(int id, double dx, double dz) {         // an enderman not provoked: tti 0, not hostile
+        return new Reflex.Contact(id, "melee", 0, dx, 1, dz, dx, dz, true, false, false, false, 40f, Math.hypot(dx, dz));
     }
 
     static Reflex.Contact creeper(int id, double dx, double dz) {        // walking: a melee mob
@@ -40,9 +44,9 @@ class ReflexTest {
 
     @Test
     void table() {
-        Reflex.Body noShield = new Reflex.Body(false, 1f, 0, 0, 0, 0);
-        Reflex.Body cooling = new Reflex.Body(true, 0.4f, 0, 0, 0, 0);
-        Reflex.Body holding = new Reflex.Body(true, 1f, 4, 0, 1, -3);
+        Reflex.Body noShield = new Reflex.Body(false, 1f, 0, -1);
+        Reflex.Body cooling = new Reflex.Body(true, 0.4f, 0, -1);
+        Reflex.Body holding = new Reflex.Body(true, 1f, 4, 1);
         Object[][] rows = {
             // (situation, contacts, policy, body) → act
             {"nothing near: nothing", List.of(), ALL, READY, "none:-1"},
@@ -58,7 +62,10 @@ class ReflexTest {
                 "attack:2"},
             {"must fail: the cooldown not full: no swing", List.of(zombie(2, 9, 0, -2, true, 20f)), ALL, cooling,
                 "none:-1"},
-            {"a hold still running keeps the shield up", List.of(), ALL, holding, "shield:-1"},
+            {"a hold still running keeps the shield up while its arrow still comes", List.of(arrow(1, 9, 0, -8)),
+                ALL, holding, "shield:1"},
+            {"must fail: a hold whose hit is gone (the bow lost its line): dropped", List.of(arrow(1, -1, 0, -8)),
+                ALL, holding, "none:-1"},
             {"a fireball in its last ticks is punched, before any shield", List.of(fireball(5, 2, true)), ALL, READY,
                 "deflect:5"},
             {"must fail: out of reach it is shielded, not punched", List.of(fireball(5, 2, false)), ALL, READY,
@@ -83,6 +90,11 @@ class ReflexTest {
                 List.of(litCreeper(7, 20, 1, -2)), ALL, READY, "none:-1"},
             {"a lit creeper beside a zombie: the zombie is struck, not the fuse",
                 List.of(litCreeper(7, 20, 1, -2), zombie(2, 40, 0.5, -2, true, 12f)), ALL, READY, "attack:2"},
+            {"must fail: counter off (not engaged), a zombie in its range, cooldown refilling: no between-swings shield",
+                List.of(zombie(2, 0, 0, -1.5, true, 12f)), new Reflex.Policy(true, false, true, true), cooling,
+                "none:-1"},
+            {"a mob not attacking (neutral) in range, cooldown refilling: no shield, no swing",
+                List.of(neutral(8, 0, -1.5)), ALL, cooling, "none:-1"},
             {"counter off: no swing", List.of(zombie(2, 20, 0, -2, true, 3f)),
                 new Reflex.Policy(true, false, true, true), READY, "none:-1"},
         };

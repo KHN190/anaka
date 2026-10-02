@@ -2,43 +2,35 @@ package dev.anaka.task;
 
 import dev.anaka.Agent;
 import dev.anaka.util.Pathfinder;
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.client.MinecraftClient;
 
 /**
- * The one way a task gets its body to where it can work (mine, place, use a block): walk there (walk-only A*), and
- * when walking finds no way — a sealed 1×2 hole has no neighbour to walk to, "no path found (1 positions
- * explored)" — travel there, breaking and placing ({@link TravelTask}: the MINE/FLOOR/PILLAR it already runs).
- * {@code walkOnly} is for the tasks TravelTask itself runs as its steps: no travel inside a travel.
+ * The one way a task gets its body to where it can work (mine, place, use a block, pick up a drop): walk there
+ * (walk-only A*). A walk that finds no way fails with its reason and the closest cell reached: the way (dig, bridge,
+ * climb) is Python's to plan and name, never dug or built here (E1, E3).
  */
 public final class ApproachTask extends Task {
-    /** Blocks a dig-through approach may place (bridging a gap, a pillar), at most; TravelTask caps it by the bag. */
-    static final int PLACE_BUDGET = 16;
-
     private final Pathfinder.Goal goal;
     private final String label;
     private final boolean sprint;
     private final int maxNodes;
-    private final boolean walkOnly;
-    private final LongOpenHashSet avoid;
-    private boolean travelling;
 
-    private ApproachTask(Pathfinder.Goal goal, String label, boolean sprint, int maxNodes, boolean walkOnly,
-                         LongOpenHashSet avoid) {
+    private ApproachTask(Pathfinder.Goal goal, String label, boolean sprint, int maxNodes) {
         super("approach");
         this.goal = goal;
         this.label = label;
         this.sprint = sprint;
         this.maxNodes = maxNodes;
-        this.walkOnly = walkOnly;
-        this.avoid = avoid == null ? new LongOpenHashSet() : avoid;
         this.timeoutTicks = 20 * 300;
     }
 
-    /** {@code avoid}: cells the dig-through may never break or build in (our own builds, the task's "avoid"). */
-    public static ApproachTask to(Pathfinder.Goal goal, String label, boolean sprint, int maxNodes, boolean walkOnly,
-                                  LongOpenHashSet avoid) {
-        return new ApproachTask(goal, label, sprint, maxNodes, walkOnly, avoid);
+    public static ApproachTask to(Pathfinder.Goal goal, String label, boolean sprint, int maxNodes) {
+        return new ApproachTask(goal, label, sprint, maxNodes);
+    }
+
+    /** Pure: the approach's end from its walk's — arrived, or failed with the walk's own reason (nothing else tried). */
+    static Status outcome(Status walk) {
+        return walk == Status.SUCCEEDED ? Status.SUCCEEDED : Status.FAILED;
     }
 
     @Override
@@ -50,18 +42,8 @@ public final class ApproachTask extends Task {
     protected void tick(MinecraftClient c, Agent a) {
         if (child == null) child = new GotoTask(goal, label, false, sprint, false, maxNodes);
         if (!runChild(c, a)) return;
-        if (child.status() == Status.SUCCEEDED) {
-            succeed(child.message());
-            return;
-        }
-        String why = child.message();
         if (child.result.has("closest")) result.add("closest", child.result.get("closest"));
-        if (walkOnly || travelling) {
-            fail(travelling ? "no way dug through: " + why : why);
-            return;
-        }
-        travelling = true;
-        result.addProperty("walk", why);
-        child = new TravelTask(goal, true, true, PLACE_BUDGET, new LongOpenHashSet(avoid));
+        if (outcome(child.status()) == Status.SUCCEEDED) succeed(child.message());
+        else fail(child.message());
     }
 }

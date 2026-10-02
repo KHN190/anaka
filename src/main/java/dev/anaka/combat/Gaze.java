@@ -39,16 +39,23 @@ public final class Gaze {
         return pitch;
     }
 
-    /** A walking task's look, pitched off every enderman's eye line within RANGE. */
-    public static void avoid(MinecraftClient c, ClientPlayerEntity p) {
+    /** Pure: the gaze reflex runs — Python's policy has it on and a task is walking. */
+    public static boolean on(Reflex.Policy policy, boolean walking) {
+        return walking && policy.gaze();
+    }
+
+    /** A walking task's look, pitched off every enderman's eye line within RANGE; true when the pitch moved. */
+    public static boolean avoid(MinecraftClient c, ClientPlayerEntity p) {
         List<double[]> eyes = new ArrayList<>();
         for (EndermanEntity e : c.world.getEntitiesByClass(EndermanEntity.class, p.getBoundingBox().expand(RANGE),
             EndermanEntity::isAlive)) {
             Vec3d at = e.getEyePos();
             eyes.add(new double[]{at.x, at.y, at.z});
         }
-        if (eyes.isEmpty()) return;
+        if (eyes.isEmpty()) return false;
         Vec3d eye = p.getEyePos();
-        p.setPitch(safePitch(new double[]{eye.x, eye.y, eye.z}, p.getYaw(), p.getPitch(), eyes));
+        float was = p.getPitch(), now = safePitch(new double[]{eye.x, eye.y, eye.z}, p.getYaw(), was, eyes);
+        p.setPitch(now);
+        return now != was;
     }
 }

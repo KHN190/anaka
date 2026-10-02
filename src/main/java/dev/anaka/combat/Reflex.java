@@ -30,9 +30,14 @@ public final class Reflex {
     public static final double ARC_DEG = 60.0;
     public static final float READY = 0.95f;          // attack cooldown full (the game's own swing is at 1.0)
 
-    /** Python's policy: what the reflex may do. Off: nothing at all. */
-    public record Policy(boolean shield, boolean counter, boolean deflect, boolean creeperFirst) {
-        public static final Policy OFF = new Policy(false, false, false, true);
+    /** Python's policy: what the reflex may do. Off: nothing at all. {@code gaze}: a walk's look kept off every
+     * enderman's eyes (Gaze, K1's list). */
+    public record Policy(boolean shield, boolean counter, boolean deflect, boolean creeperFirst, boolean gaze) {
+        public static final Policy OFF = new Policy(false, false, false, true, false);
+
+        public Policy(boolean shield, boolean counter, boolean deflect, boolean creeperFirst) {
+            this(shield, counter, deflect, creeperFirst, false);
+        }
 
         public boolean off() {
             return !shield && !counter && !deflect;
@@ -47,8 +52,9 @@ public final class Reflex {
                           boolean inReach, boolean hostile, boolean deflectable, boolean creeper, float health,
                           double dist) {}
 
-    /** The body now: a shield in the offhand and free to raise, the attack cooldown 0..1, a hold still running. */
-    public record Body(boolean canShield, float cooldown, int holdLeft, double holdX, double holdY, double holdZ) {}
+    /** The body now: a shield in the offhand and free to raise, the attack cooldown 0..1, a hold still running
+     * against {@code holdId}. */
+    public record Body(boolean canShield, float cooldown, int holdLeft, int holdId) {}
 
     /** What to do this tick: {@code what} none | shield | deflect | attack; the entity, the point to face, and for a
      * new shield window how long it holds. */
@@ -81,8 +87,11 @@ public final class Reflex {
             if (soonest != null && soonest.tti() <= LEAD) {
                 return new Act("shield", soonest.id(), soonest.x(), soonest.y(), soonest.z(), soonest.tti() + AFTER);
             }
-            if (body.holdLeft() > 0) {
-                return new Act("shield", -1, body.holdX(), body.holdY(), body.holdZ(), 0);
+            // a hold runs on only while its hit is still coming (a drawn bow that lost its line never fires)
+            Contact src = contacts.stream().filter(c -> c.id() == body.holdId() && c.tti() >= 0).findFirst()
+                .orElse(null);
+            if (body.holdLeft() > 0 && src != null) {
+                return new Act("shield", src.id(), src.x(), src.y(), src.z(), 0);
             }
         }
         if (pol.counter() && body.cooldown() >= READY) {
@@ -97,9 +106,10 @@ public final class Reflex {
             Contact t = targets.stream().min(order).orElse(null);
             if (t != null) return new Act("attack", t.id(), t.x(), t.y(), t.z(), 0);
         }
-        if (pol.shield() && body.canShield()) {
-            // between swings: up against the nearest melee mob in its range (no hold: the next full cooldown swings)
-            Contact m = contacts.stream().filter(c -> !exact(c) && c.tti() == 0)
+        if (pol.shield() && pol.counter() && body.canShield()) {
+            // engaged, between swings: up against the nearest hostile melee mob that can hit now (in range, seen —
+            // tti 0; no hold: the next full cooldown swings)
+            Contact m = contacts.stream().filter(c -> !exact(c) && c.hostile() && c.tti() == 0)
                 .min(Comparator.comparingDouble(Contact::dist)).orElse(null);
             if (m != null) return new Act("shield", m.id(), m.x(), m.y(), m.z(), 0);
         }
@@ -109,8 +119,9 @@ public final class Reflex {
     /** Pure: a projectile's contact — tti on the body box, and a swing reaching its box ({@code half}) from the eye. */
     public static Contact projectile(int id, String kind, boolean deflectable, double[] pos, double[] vel,
                                      Impact.Motion m, double half, double[] lo, double[] hi, double[] eye,
-                                     double reach, int maxTicks) {
-        Impact.Hit hit = Impact.projectile(new double[]{pos[0], pos[1] + half, pos[2]}, vel, m, lo, hi, half, maxTicks);
+                                     double reach, int maxTicks, Impact.Terrain t) {
+        Impact.Hit hit = Impact.projectile(new double[]{pos[0], pos[1] + half, pos[2]}, vel, m, lo, hi, half, maxTicks,
+            t);
         // now or on the next LAG_TICKS: the client sees it late (DeflectTest, two ticks behind: missed)
         boolean inReach = reaches(eye, pos, half, reach);
         for (double[] next : Impact.path(pos, vel, m, LAG_TICKS)) inReach |= reaches(eye, next, half, reach);

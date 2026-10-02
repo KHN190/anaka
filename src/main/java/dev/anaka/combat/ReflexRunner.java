@@ -20,8 +20,7 @@ public final class ReflexRunner {
     private ReflexRunner() {}
 
     private static volatile Reflex.Policy policy = Reflex.Policy.OFF;
-    private static int tick, holdUntil;
-    private static double holdX, holdY, holdZ;
+    private static int tick, holdUntil, holdId = -1;
 
     public static Reflex.Policy policy() {
         return policy;
@@ -37,7 +36,8 @@ public final class ReflexRunner {
         Reflex.Policy p = policy;
         policy = new Reflex.Policy(flag(body, "shield", p.shield()), flag(body, "counter", p.counter()),
             flag(body, "deflect", p.deflect()),
-            body.has("priority") ? !"fastest".equals(body.get("priority").getAsString()) : p.creeperFirst());
+            body.has("priority") ? !"fastest".equals(body.get("priority").getAsString()) : p.creeperFirst(),
+            flag(body, "gaze", p.gaze()));
         return policy;
     }
 
@@ -47,6 +47,7 @@ public final class ReflexRunner {
         o.addProperty("shield", p.shield());
         o.addProperty("counter", p.counter());
         o.addProperty("deflect", p.deflect());
+        o.addProperty("gaze", p.gaze());
         o.addProperty("priority", p.creeperFirst() ? "creeper" : "fastest");
         o.addProperty("shieldDelay", Reflex.SHIELD_DELAY);
         o.addProperty("lead", Reflex.LEAD);
@@ -89,6 +90,14 @@ public final class ReflexRunner {
 
     private static volatile Last last;
 
+    /** A reflex act taken: the last one and the recent ring (GET /reflex), every reflex through here (E1's event). */
+    public static void acted(String what, int id, long worldTick) {
+        last = new Last(what, id, worldTick);
+        synchronized (RECENT) {
+            note(RECENT, last, KEEP);
+        }
+    }
+
     private static boolean flag(JsonObject o, String key, boolean def) {
         if (!o.has(key) || o.get(key).isJsonNull()) return def;
         if (!o.get(key).isJsonPrimitive() || !o.get(key).getAsJsonPrimitive().isBoolean())
@@ -107,20 +116,13 @@ public final class ReflexRunner {
         boolean eating = p.isUsingItem() && p.getActiveHand() == Hand.MAIN_HAND;
         boolean shield = InvUtil.id(p.getOffHandStack()).equals("minecraft:shield") && !eating;
         Reflex.Act act = Reflex.decide(contacts, pol, new Reflex.Body(shield, p.getAttackCooldownProgress(0.5f),
-            holdUntil - tick, holdX, holdY, holdZ));
-        if (!"none".equals(act.what())) {
-            last = new Last(act.what(), act.id(), c.world.getTime());
-            synchronized (RECENT) {
-                note(RECENT, last, KEEP);
-            }
-        }
+            holdUntil - tick, holdId));
+        if (!"none".equals(act.what())) acted(act.what(), act.id(), c.world.getTime());
         switch (act.what()) {
             case "shield" -> {
                 if (act.hold() > 0 && tick + act.hold() > holdUntil) {
                     holdUntil = tick + act.hold();
-                    holdX = act.x();
-                    holdY = act.y();
-                    holdZ = act.z();
+                    holdId = act.id();
                 }
                 look(p, a, new Vec3d(act.x(), act.y(), act.z()));
                 a.holdUse = true;

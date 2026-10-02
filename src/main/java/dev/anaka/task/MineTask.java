@@ -33,11 +33,9 @@ public final class MineTask extends Task {
     static final int BLIND_TICKS = 6;
 
     private final java.util.Set<String> only;
-    private boolean walkOnly;
     /** The item Python named to break with (null: what is in hand, "hand": a free hand). */
     private String tool;
     private boolean down;
-    private it.unimi.dsi.fastutil.longs.LongOpenHashSet avoid;
 
     public MineTask(BlockPos pos, boolean collect, boolean requireDrops) {
         this(pos, collect, requireDrops, null);
@@ -52,12 +50,6 @@ public final class MineTask extends Task {
         this.timeoutTicks = 20 * 180;
     }
 
-    /** Approach on foot only: TravelTask's own steps, which must not start a travel inside the travel. */
-    public MineTask walkOnly() {
-        walkOnly = true;
-        down = true;              // a route's own digging goes down through the column it stands in
-        return this;
-    }
 
     /** Break with the item Python named (the task's "item"). */
     public MineTask holding(String item) {
@@ -68,12 +60,6 @@ public final class MineTask extends Task {
     /** The block is under the feet on purpose (a dig down, a buried drop): its own column is a stand spot. */
     public MineTask down(boolean d) {
         down = d;
-        return this;
-    }
-
-    /** Cells the approach may never dig or build through (the task JSON's "avoid"). */
-    public MineTask avoiding(it.unimi.dsi.fastutil.longs.LongOpenHashSet cells) {
-        avoid = cells;
         return this;
     }
 
@@ -139,7 +125,7 @@ public final class MineTask extends Task {
                     return;
                 }
                 // A spot to mine from is always close: 6 000 nodes, not 60 000 (unreachable blocks burned minutes).
-                child = ApproachTask.to(reachGoal(c, range), "walking to mine " + blockId, true, 6_000, walkOnly, avoid);
+                child = ApproachTask.to(reachGoal(c, range), "walking to mine " + blockId, true, 6_000);
             }
             if (runChild(c, a)) {
                 if (child.status() != Status.SUCCEEDED) {

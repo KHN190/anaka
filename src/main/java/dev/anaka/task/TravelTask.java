@@ -161,7 +161,7 @@ public final class TravelTask extends Task {
             switch (act.kind()) {
                 case MINE -> {
                     if (WorldUtil.passable(c.world, act.pos())) continue;
-                    child = new MineTask(act.pos(), false, false).walkOnly().holding(tool);
+                    child = new MineTask(act.pos(), false, false).down(true).holding(tool);
                 }
                 case FLOOR -> {
                     if (!c.world.getBlockState(act.pos()).isReplaceable()) continue;
@@ -170,7 +170,7 @@ public final class TravelTask extends Task {
                         fail("no building blocks to bridge with");
                         return;
                     }
-                    child = new PlaceTask(act.pos(), block, act.against(), null).walkOnly();
+                    child = new PlaceTask(act.pos(), block, act.against(), null);
                 }
                 case PILLAR -> {
                     String block = pickBlock(p);
