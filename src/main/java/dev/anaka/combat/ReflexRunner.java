@@ -26,11 +26,9 @@ public final class ReflexRunner {
         return policy;
     }
 
-    private static volatile boolean guarding;
-
-    /** A shield window is open, or a guard held: a task must not swing (a swing lowers the shield; shield > attack). */
+    /** A shield window is open: a task must not swing (a swing lowers the shield; shield > attack). */
     public static boolean shielding() {
-        return holdUntil > tick || guarding;
+        return holdUntil > tick;
     }
 
     /** POST /reflex: any of shield, counter, deflect (booleans) and priority ("creeper" first, or "fastest"). */
@@ -39,7 +37,7 @@ public final class ReflexRunner {
         policy = new Reflex.Policy(flag(body, "shield", p.shield()), flag(body, "counter", p.counter()),
             flag(body, "deflect", p.deflect()),
             body.has("priority") ? !"fastest".equals(body.get("priority").getAsString()) : p.creeperFirst(),
-            flag(body, "gaze", p.gaze()), guard(body, p.guard()));
+            flag(body, "gaze", p.gaze()));
         return policy;
     }
 
@@ -53,7 +51,6 @@ public final class ReflexRunner {
         o.addProperty("priority", p.creeperFirst() ? "creeper" : "fastest");
         o.addProperty("shieldDelay", Reflex.SHIELD_DELAY);
         o.addProperty("lead", Reflex.LEAD);
-        if (p.guard() >= 0) o.addProperty("guard", p.guard());
         com.google.gson.JsonArray ts = new com.google.gson.JsonArray();
         synchronized (TICKS) {
             for (TickNote n : TICKS) {             // the shield per tick, oldest first: in use, which hand, blocking
@@ -120,15 +117,6 @@ public final class ReflexRunner {
         }
     }
 
-    /** "guard": an entity id to keep the shield up toward while it is seen, or null to stop guarding. */
-    private static int guard(JsonObject o, int def) {
-        if (!o.has("guard")) return def;
-        if (o.get("guard").isJsonNull()) return -1;
-        if (!o.get("guard").isJsonPrimitive() || !o.get("guard").getAsJsonPrimitive().isNumber())
-            throw new IllegalArgumentException("\"guard\" must be an entity id or null");
-        return o.get("guard").getAsInt();
-    }
-
     private static boolean flag(JsonObject o, String key, boolean def) {
         if (!o.has(key) || o.get(key).isJsonNull()) return def;
         if (!o.get(key).isJsonPrimitive() || !o.get(key).getAsJsonPrimitive().isBoolean())
@@ -140,10 +128,7 @@ public final class ReflexRunner {
         tick++;
         Reflex.Policy pol = policy;
         ClientPlayerEntity p = c.player;
-        if (pol.off() || p == null || c.world == null || c.interactionManager == null) {
-            guarding = false;
-            return;
-        }
+        if (pol.off() || p == null || c.world == null || c.interactionManager == null) return;
         List<Threats.Seen> seen = Threats.read(c);
         List<Reflex.Contact> contacts = new ArrayList<>(seen.size());
         for (Threats.Seen s : seen) contacts.add(s.contact());
@@ -156,8 +141,7 @@ public final class ReflexRunner {
         boolean eating = p.isUsingItem() && p.getActiveHand() == Hand.MAIN_HAND;
         boolean shield = InvUtil.id(p.getOffHandStack()).equals("minecraft:shield") && !eating;
         Reflex.Act act = Reflex.decide(contacts, pol, new Reflex.Body(shield, p.getAttackCooldownProgress(0.5f),
-            holdUntil - tick, holdId, guarded(c, p, pol.guard())));
-        guarding = "shield".equals(act.what()) && act.id() == pol.guard();
+            holdUntil - tick, holdId));
         if (!"none".equals(act.what())) acted(act.what(), act.id(), c.world.getTime());
         switch (act.what()) {
             case "shield" -> {
@@ -188,15 +172,6 @@ public final class ReflexRunner {
             }
             default -> { }
         }
-    }
-
-    /** The guarded mob's id while it is alive with a clear line to us (Threats.seen), else -1. */
-    private static int guarded(MinecraftClient c, ClientPlayerEntity p, int id) {
-        if (id < 0) return -1;
-        Entity e = c.world.getEntityById(id);
-        if (e == null || !e.isAlive()) return -1;
-        return Threats.seen(Threats.terrain(c.world, e), new double[]{e.getX(), e.getEyeY(), e.getZ()},
-            new double[]{p.getX(), p.getEyeY(), p.getZ()}) ? id : -1;
     }
 
     private static void sendLook(MinecraftClient c, ClientPlayerEntity p, float yaw, float pitch) {

@@ -146,7 +146,7 @@ public final class AttackTask extends Task {
         }
     }
 
-    static final double STRAIGHT_MAX = 6.0;
+    static final double STRAIGHT_MAX = 16.0;     // a bow's reach (15) and a little: an archer in the open is run at, sprinting
     static final float READY = 0.85f;        // the swing nearly refilled: step in for it
     static final double BACK_OFF = 1.5;      // how far past reach the footwork stays (then it closes normally)
 

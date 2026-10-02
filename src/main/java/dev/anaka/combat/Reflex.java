@@ -32,16 +32,11 @@ public final class Reflex {
 
     /** Python's policy: what the reflex may do. Off: nothing at all. {@code gaze}: a walk's look kept off every
      * enderman's eyes (Gaze, K1's list). */
-    public record Policy(boolean shield, boolean counter, boolean deflect, boolean creeperFirst, boolean gaze,
-                         int guard) {
-        public static final Policy OFF = new Policy(false, false, false, true, false, -1);
+    public record Policy(boolean shield, boolean counter, boolean deflect, boolean creeperFirst, boolean gaze) {
+        public static final Policy OFF = new Policy(false, false, false, true, false);
 
         public Policy(boolean shield, boolean counter, boolean deflect, boolean creeperFirst) {
-            this(shield, counter, deflect, creeperFirst, false, -1);
-        }
-
-        public Policy(boolean shield, boolean counter, boolean deflect, boolean creeperFirst, boolean gaze) {
-            this(shield, counter, deflect, creeperFirst, gaze, -1);
+            this(shield, counter, deflect, creeperFirst, false);
         }
 
         public boolean off() {
@@ -58,13 +53,8 @@ public final class Reflex {
                           double dist) {}
 
     /** The body now: a shield in the offhand and free to raise, the attack cooldown 0..1, a hold still running
-     * against {@code holdId}; {@code guard}: the mob Python named to guard against (Policy.guard) when it is seen,
-     * else -1. */
-    public record Body(boolean canShield, float cooldown, int holdLeft, int holdId, int guard) {
-        public Body(boolean canShield, float cooldown, int holdLeft, int holdId) {
-            this(canShield, cooldown, holdLeft, holdId, -1);
-        }
-    }
+     * against {@code holdId}. */
+    public record Body(boolean canShield, float cooldown, int holdLeft, int holdId) {}
 
     /** What to do this tick: {@code what} none | shield | deflect | attack; the entity, the point to face, and for a
      * new shield window how long it holds. */
@@ -103,9 +93,10 @@ public final class Reflex {
             if (body.holdLeft() > 0 && src != null) {
                 return new Act("shield", src.id(), src.x(), src.y(), src.z(), 0);
             }
-            // guarded (Python's archer, seen): up toward it the whole time, no swing to drop it
-            Contact g = contacts.stream().filter(c -> c.id() == body.guard()).findFirst().orElse(null);
-            if (g != null) return new Act("shield", g.id(), g.x(), g.y(), g.z(), 0);
+            // a bow drawn at us in sight: up from the draw's start, held past the release (its arrow's hit + AFTER)
+            Contact d = contacts.stream().filter(c -> "draw".equals(c.kind()) && c.tti() >= 0)
+                .min(Comparator.comparingInt(Contact::tti)).orElse(null);
+            if (d != null) return new Act("shield", d.id(), d.x(), d.y(), d.z(), d.tti() + AFTER);
         }
         if (pol.counter() && body.cooldown() >= READY) {
             List<Contact> targets = new ArrayList<>();
